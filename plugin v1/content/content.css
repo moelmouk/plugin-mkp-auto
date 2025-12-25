@@ -1,4 +1,4 @@
-/* Form Recorder Pro v2.1 - Content Styles */
+/* Form Recorder Pro v3.0 - Content Styles */
 
 /* Indicateur d'enregistrement */
 #fr-indicator {
@@ -128,4 +128,138 @@
   0% { width: 0%; }
   50% { width: 100%; }
   100% { width: 0%; }
+}
+
+/* ===== PANNEAU DEBUG ===== */
+#fr-debug-panel {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 2147483646;
+  background: #1a1a2e;
+  color: #eee;
+  border-radius: 12px;
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 11px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  width: 400px;
+  max-height: 300px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+#fr-debug-panel.fr-debug-minimized {
+  max-height: 40px;
+  width: 200px;
+}
+
+#fr-debug-panel.fr-debug-minimized .fr-debug-content {
+  display: none;
+}
+
+.fr-debug-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+  border-radius: 12px 12px 0 0;
+  cursor: pointer;
+}
+
+.fr-debug-title {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.fr-debug-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.fr-debug-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  transition: background 0.2s;
+}
+
+.fr-debug-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.fr-debug-content {
+  padding: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #0f0f1a;
+}
+
+.fr-log-entry {
+  padding: 4px 8px;
+  margin-bottom: 2px;
+  border-radius: 4px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.fr-log-time {
+  color: #666;
+  font-size: 9px;
+  min-width: 60px;
+}
+
+.fr-log-msg {
+  flex: 1;
+  word-break: break-word;
+}
+
+.fr-log-data {
+  color: #888;
+  font-size: 9px;
+  display: block;
+  margin-top: 2px;
+}
+
+.fr-log-info {
+  background: rgba(79, 70, 229, 0.1);
+  border-left: 2px solid #4F46E5;
+}
+
+.fr-log-success {
+  background: rgba(16, 185, 129, 0.1);
+  border-left: 2px solid #10B981;
+}
+
+.fr-log-warn {
+  background: rgba(245, 158, 11, 0.1);
+  border-left: 2px solid #F59E0B;
+}
+
+.fr-log-error {
+  background: rgba(239, 68, 68, 0.1);
+  border-left: 2px solid #EF4444;
+}
+
+/* Scrollbar pour le debug panel */
+.fr-debug-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.fr-debug-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.fr-debug-content::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+.fr-debug-content::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
