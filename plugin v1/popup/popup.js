@@ -1,47 +1,45 @@
-// Popup Script - Form Recorder Pro v3.0
+// Popup Script - Form Recorder Pro v4.0
 
 // ===== ÉLÉMENTS DOM =====
 const elements = {
-  // Tabs
   tabs: document.querySelectorAll('.tab'),
   tabContents: document.querySelectorAll('.tab-content'),
   
-  // Controls
   recordBtn: document.getElementById('recordBtn'),
   stopBtn: document.getElementById('stopBtn'),
   playBtn: document.getElementById('playBtn'),
+  pauseBtn: document.getElementById('pauseBtn'),
   clearBtn: document.getElementById('clearBtn'),
   saveBtn: document.getElementById('saveBtn'),
   exportBtn: document.getElementById('exportBtn'),
   importInput: document.getElementById('importInput'),
-  debugToggle: document.getElementById('debugToggle'),
   addCommandBtn: document.getElementById('addCommandBtn'),
   
-  // Status & Errors
   status: document.getElementById('status'),
-  errorBanner: document.getElementById('errorBanner'),
-  errorMessage: document.getElementById('errorMessage'),
-  dismissError: document.getElementById('dismissError'),
   commandCount: document.getElementById('commandCount'),
   commandsList: document.getElementById('commandsList'),
   scenariosList: document.getElementById('scenariosList'),
+  logsContainer: document.getElementById('logsContainer'),
   
-  // Save Modal
+  clearLogsBtn: document.getElementById('clearLogsBtn'),
+  exportLogsBtn: document.getElementById('exportLogsBtn'),
+  
   saveModal: document.getElementById('saveModal'),
   scenarioName: document.getElementById('scenarioName'),
   cancelSaveBtn: document.getElementById('cancelSaveBtn'),
   confirmSaveBtn: document.getElementById('confirmSaveBtn'),
   
-  // Edit Modal
   editModal: document.getElementById('editModal'),
   editCommand: document.getElementById('editCommand'),
   editTarget: document.getElementById('editTarget'),
   editValue: document.getElementById('editValue'),
   editDescription: document.getElementById('editDescription'),
+  alternateTargets: document.getElementById('alternateTargets'),
+  locateTargetBtn: document.getElementById('locateTargetBtn'),
+  copyTargetBtn: document.getElementById('copyTargetBtn'),
   cancelEditBtn: document.getElementById('cancelEditBtn'),
   confirmEditBtn: document.getElementById('confirmEditBtn'),
   
-  // Add Command Modal
   addCommandModal: document.getElementById('addCommandModal'),
   addCommand: document.getElementById('addCommand'),
   addTarget: document.getElementById('addTarget'),
@@ -50,22 +48,20 @@ const elements = {
   cancelAddBtn: document.getElementById('cancelAddBtn'),
   confirmAddBtn: document.getElementById('confirmAddBtn'),
   
-  // Settings
   recordOpenCommand: document.getElementById('recordOpenCommand'),
   defaultWait: document.getElementById('defaultWait'),
   typeDelay: document.getElementById('typeDelay'),
   waitTimeout: document.getElementById('waitTimeout'),
-  highlightElements: document.getElementById('highlightElements'),
-  smartWait: document.getElementById('smartWait'),
-  debugMode: document.getElementById('debugMode')
+  highlightElements: document.getElementById('highlightElements')
 };
 
 // ===== ÉTAT =====
 let currentCommands = [];
 let savedScenarios = [];
 let editingIndex = -1;
-let debugModeEnabled = true;
-
+let currentPlayingIndex = -1;
+let isPaused = false;
+let logs = [];
 
 // ===== INITIALISATION =====
 document.addEventListener('DOMContentLoaded', async () => {
@@ -76,16 +72,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadSettings();
 });
 
-// ===== GESTION DES TABS =====
 function setupEventListeners() {
   // Tabs
   elements.tabs.forEach(tab => {
     tab.addEventListener('click', () => {
       const tabId = tab.dataset.tab;
-      
       elements.tabs.forEach(t => t.classList.remove('active'));
       elements.tabContents.forEach(c => c.classList.remove('active'));
-      
       tab.classList.add('active');
       document.getElementById(`tab-${tabId}`).classList.add('active');
     });
@@ -93,19 +86,21 @@ function setupEventListeners() {
 
   // Controls
   elements.recordBtn.addEventListener('click', startRecording);
-  elements.stopBtn.addEventListener('click', stopRecording);
+  elements.stopBtn.addEventListener('click', stopAll);
   elements.playBtn.addEventListener('click', startPlayback);
+  elements.pauseBtn.addEventListener('click', togglePause);
   elements.clearBtn.addEventListener('click', clearCommands);
-  elements.saveBtn.addEventListener('click', openSaveModal);
+  elements.saveBtn.addEventListener('click', () => {
+    elements.scenarioName.value = `Scénario ${savedScenarios.length + 1}`;
+    elements.saveModal.hidden = false;
+  });
   elements.exportBtn.addEventListener('click', exportCommands);
   elements.importInput.addEventListener('change', importCommands);
-  elements.debugToggle.addEventListener('click', toggleDebugMode);
-  elements.addCommandBtn.addEventListener('click', openAddCommandModal);
+  elements.addCommandBtn.addEventListener('click', openAddModal);
 
-  // Error banner
-  elements.dismissError.addEventListener('click', () => {
-    elements.errorBanner.hidden = true;
-  });
+  // Logs
+  elements.clearLogsBtn.addEventListener('click', clearLogs);
+  elements.exportLogsBtn.addEventListener('click', exportLogs);
 
   // Save Modal
   elements.cancelSaveBtn.addEventListener('click', () => elements.saveModal.hidden = true);
@@ -115,9 +110,11 @@ function setupEventListeners() {
   // Edit Modal
   elements.cancelEditBtn.addEventListener('click', () => elements.editModal.hidden = true);
   elements.confirmEditBtn.addEventListener('click', saveEditedCommand);
+  elements.locateTargetBtn.addEventListener('click', locateCurrentTarget);
+  elements.copyTargetBtn.addEventListener('click', copyCurrentTarget);
   document.querySelector('#editModal .modal-overlay').addEventListener('click', () => elements.editModal.hidden = true);
 
-  // Add Command Modal
+  // Add Modal
   elements.cancelAddBtn.addEventListener('click', () => elements.addCommandModal.hidden = true);
   elements.confirmAddBtn.addEventListener('click', addNewCommand);
   document.querySelector('#addCommandModal .modal-overlay').addEventListener('click', () => elements.addCommandModal.hidden = true);
@@ -128,52 +125,66 @@ function setupEventListeners() {
   elements.typeDelay.addEventListener('change', saveSettings);
   elements.waitTimeout.addEventListener('change', saveSettings);
   elements.highlightElements.addEventListener('change', saveSettings);
-  elements.smartWait.addEventListener('change', saveSettings);
-  elements.debugMode.addEventListener('change', saveSettings);
 
-  // Écouter les messages du background
+  // Messages du background
   chrome.runtime.onMessage.addListener((message) => {
     if (message.action === 'playbackProgress') {
-      updatePlaybackProgress(message.current, message.total);
+      currentPlayingIndex = message.current - 1;
+      renderCommands();
+      addLog('info', `Exécution ${message.current}/${message.total}: ${message.command.Command}`);
     } else if (message.action === 'playbackComplete') {
+      currentPlayingIndex = -1;
       setIdleUI();
-      showSuccess('Lecture terminée');
+      addLog('success', 'Lecture terminée');
     } else if (message.action === 'commandError') {
-      showError(`Erreur commande ${message.index + 1}: ${message.error}`);
+      addLog('error', `Erreur cmd ${message.index + 1}: ${message.error}`);
+    } else if (message.action === 'commandSuccess') {
+      addLog('success', `Cmd ${message.index + 1} OK`);
     }
   });
 }
 
-// ===== DEBUG MODE =====
-async function toggleDebugMode() {
-  try {
-    const response = await chrome.runtime.sendMessage({ action: 'toggleDebug' });
-    debugModeEnabled = response.debugMode;
-    elements.debugToggle.classList.toggle('active', debugModeEnabled);
-  } catch (e) {
-    console.error('Error toggling debug:', e);
+// ===== LOGS =====
+function addLog(level, message) {
+  const timestamp = new Date().toLocaleTimeString();
+  logs.push({ timestamp, level, message });
+  if (logs.length > 200) logs.shift();
+  renderLogs();
+}
+
+function renderLogs() {
+  if (logs.length === 0) {
+    elements.logsContainer.innerHTML = '<p class="empty-state">Aucun log</p>';
+    return;
   }
+  
+  elements.logsContainer.innerHTML = logs.map(log => {
+    const icon = log.level === 'error' ? '❌' : log.level === 'success' ? '✅' : 'ℹ️';
+    return `<div class="log-entry log-${log.level}">
+      <span class="log-time">${log.timestamp}</span>
+      <span class="log-icon">${icon}</span>
+      <span class="log-msg">${escapeHtml(log.message)}</span>
+    </div>`;
+  }).reverse().join('');
 }
 
-// ===== GESTION DES ERREURS =====
-function showError(message) {
-  elements.errorMessage.textContent = message;
-  elements.errorBanner.hidden = false;
-  elements.errorBanner.classList.add('error');
-  elements.errorBanner.classList.remove('success');
+function clearLogs() {
+  logs = [];
+  renderLogs();
 }
 
-function showSuccess(message) {
-  elements.errorMessage.textContent = message;
-  elements.errorBanner.hidden = false;
-  elements.errorBanner.classList.add('success');
-  elements.errorBanner.classList.remove('error');
-  setTimeout(() => {
-    elements.errorBanner.hidden = true;
-  }, 3000);
+function exportLogs() {
+  const text = logs.map(l => `[${l.timestamp}] [${l.level.toUpperCase()}] ${l.message}`).join('\n');
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `form-recorder-logs-${Date.now()}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
-// ===== MISE À JOUR DE L'ÉTAT =====
+// ===== ÉTAT =====
 async function updateState() {
   try {
     const state = await chrome.runtime.sendMessage({ action: 'getState' });
@@ -182,6 +193,7 @@ async function updateState() {
       setRecordingUI();
     } else if (state.isPlaying) {
       setPlayingUI();
+      isPaused = state.isPaused;
     } else {
       setIdleUI();
     }
@@ -190,26 +202,25 @@ async function updateState() {
       currentCommands = state.commands;
       renderCommands();
     }
-    
-    debugModeEnabled = state.settings?.debugMode !== false;
-    elements.debugToggle.classList.toggle('active', debugModeEnabled);
   } catch (e) {
-    console.error('Error getting state:', e);
+    console.error('State error:', e);
   }
 }
 
-// ===== UI STATES =====
 function setIdleUI() {
   elements.recordBtn.disabled = false;
   elements.recordBtn.classList.remove('recording');
   elements.stopBtn.disabled = true;
   elements.playBtn.disabled = currentCommands.length === 0;
+  elements.pauseBtn.disabled = true;
   elements.clearBtn.disabled = currentCommands.length === 0;
   elements.saveBtn.disabled = currentCommands.length === 0;
   elements.exportBtn.disabled = currentCommands.length === 0;
+  currentPlayingIndex = -1;
+  isPaused = false;
   
   elements.status.className = 'status';
-  elements.status.innerHTML = '<span class="status-icon">⏸️</span><span class="status-text">Prêt à enregistrer</span>';
+  elements.status.innerHTML = '<span class="status-icon">⏸️</span><span class="status-text">Prêt</span>';
 }
 
 function setRecordingUI() {
@@ -217,28 +228,26 @@ function setRecordingUI() {
   elements.recordBtn.classList.add('recording');
   elements.stopBtn.disabled = false;
   elements.playBtn.disabled = true;
+  elements.pauseBtn.disabled = true;
   elements.clearBtn.disabled = true;
   elements.saveBtn.disabled = true;
   elements.exportBtn.disabled = true;
   
   elements.status.className = 'status recording';
-  elements.status.innerHTML = '<span class="status-icon">🔴</span><span class="status-text">Enregistrement en cours...</span>';
+  elements.status.innerHTML = '<span class="status-icon">🔴</span><span class="status-text">Enregistrement...</span>';
 }
 
 function setPlayingUI() {
   elements.recordBtn.disabled = true;
   elements.stopBtn.disabled = false;
   elements.playBtn.disabled = true;
+  elements.pauseBtn.disabled = false;
   elements.clearBtn.disabled = true;
   elements.saveBtn.disabled = true;
   elements.exportBtn.disabled = true;
   
   elements.status.className = 'status playing';
-  elements.status.innerHTML = '<span class="status-icon">▶️</span><span class="status-text">Lecture en cours...</span>';
-}
-
-function updatePlaybackProgress(current, total) {
-  elements.status.innerHTML = `<span class="status-icon">▶️</span><span class="status-text">Lecture: ${current}/${total}</span>`;
+  elements.status.innerHTML = '<span class="status-icon">▶️</span><span class="status-text">Lecture...</span>';
 }
 
 // ===== ENREGISTREMENT =====
@@ -247,54 +256,54 @@ async function startRecording() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     
     if (!tab || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
-      showError('Impossible d\'enregistrer sur cette page.\nVeuillez ouvrir un site web.');
+      addLog('error', 'Impossible d\'enregistrer sur cette page');
       return;
     }
-    
-    const settings = getSettings();
     
     const response = await chrome.runtime.sendMessage({ 
       action: 'startRecording',
       tabId: tab.id,
-      settings: settings
+      settings: getSettings()
     });
     
     if (response.success) {
       setRecordingUI();
       currentCommands = [];
       renderCommands();
-      elements.errorBanner.hidden = true;
+      addLog('info', 'Enregistrement démarré');
       
-      // Mettre à jour après un délai pour récupérer la commande 'open'
       setTimeout(async () => {
         const state = await chrome.runtime.sendMessage({ action: 'getCommands' });
         if (state.commands) {
           currentCommands = state.commands;
           renderCommands();
         }
-      }, 500);
-    } else {
-      showError('Erreur: ' + response.error);
+      }, 600);
     }
   } catch (e) {
-    console.error('Error starting recording:', e);
-    showError('Erreur: ' + e.message);
+    addLog('error', e.message);
   }
 }
 
-async function stopRecording() {
+async function stopAll() {
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'stopRecording' });
+    const state = await chrome.runtime.sendMessage({ action: 'getState' });
     
-    if (response.success && response.commands) {
-      currentCommands = response.commands;
+    if (state.isRecording) {
+      const response = await chrome.runtime.sendMessage({ action: 'stopRecording' });
+      if (response.commands) {
+        currentCommands = response.commands;
+      }
+      addLog('info', `Enregistrement arrêté: ${currentCommands.length} commandes`);
+    } else if (state.isPlaying) {
+      await chrome.runtime.sendMessage({ action: 'stopPlaying' });
+      addLog('info', 'Lecture arrêtée');
     }
     
     setIdleUI();
     renderCommands();
-    showSuccess(`${currentCommands.length} commandes enregistrées`);
   } catch (e) {
-    console.error('Error stopping recording:', e);
+    addLog('error', e.message);
   }
 }
 
@@ -304,13 +313,12 @@ async function startPlayback() {
   
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
     if (!tab) {
-      showError('Aucun onglet actif trouvé.');
+      addLog('error', 'Aucun onglet actif');
       return;
     }
     
-    elements.errorBanner.hidden = true;
+    addLog('info', `Démarrage lecture: ${currentCommands.length} commandes`);
     
     const response = await chrome.runtime.sendMessage({
       action: 'startPlaying',
@@ -320,12 +328,20 @@ async function startPlayback() {
     
     if (response.success) {
       setPlayingUI();
-    } else {
-      showError('Erreur: ' + response.error);
     }
   } catch (e) {
-    console.error('Error starting playback:', e);
-    showError('Erreur: ' + e.message);
+    addLog('error', e.message);
+  }
+}
+
+async function togglePause() {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'pausePlaying' });
+    isPaused = response.isPaused;
+    elements.pauseBtn.classList.toggle('active', isPaused);
+    addLog('info', isPaused ? 'Pause' : 'Reprise');
+  } catch (e) {
+    addLog('error', e.message);
   }
 }
 
@@ -334,60 +350,36 @@ function renderCommands() {
   elements.commandCount.textContent = currentCommands.length;
   
   if (currentCommands.length === 0) {
-    elements.commandsList.innerHTML = '<p class="empty-state">Cliquez sur "Enregistrer" pour commencer</p>';
+    elements.commandsList.innerHTML = '<p class="empty-state">Cliquez sur REC pour commencer</p>';
     return;
   }
   
   elements.commandsList.innerHTML = currentCommands.map((cmd, index) => {
-    const targetShort = shortenSelector(cmd.Target);
+    const isPlaying = index === currentPlayingIndex;
+    const targetShort = shortenSelector(cmd.Target, 35);
     let typeClass = cmd.Command;
-    if (cmd.Command.startsWith('wait')) typeClass = 'wait';
-    if (cmd.Command === 'selectNgOption') typeClass = 'select';
-    if (cmd.Command === 'clickLabel' || cmd.Command === 'clickRadioByValue') typeClass = 'click';
-    if (cmd.Command === 'pause') typeClass = 'wait';
+    if (cmd.Command === 'waitForElementVisible' || cmd.Command === 'pause') typeClass = 'wait';
     
     return `
-      <div class="command-item" data-index="${index}">
+      <div class="command-item ${isPlaying ? 'playing' : ''}" data-index="${index}">
         <span class="command-index">${index + 1}</span>
         <span class="command-type ${typeClass}">${cmd.Command}</span>
         <span class="command-target" title="${escapeHtml(cmd.Target)}">${escapeHtml(targetShort)}</span>
-        ${cmd.Value ? `<span class="command-value" title="${escapeHtml(cmd.Value)}">${escapeHtml(cmd.Value.substring(0, 15))}</span>` : ''}
+        ${cmd.Value ? `<span class="command-value" title="${escapeHtml(cmd.Value)}">${escapeHtml(cmd.Value.substring(0, 12))}</span>` : ''}
         <div class="command-actions">
-          <button class="cmd-btn edit" title="Modifier" data-index="${index}">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-          </button>
-          <button class="cmd-btn duplicate" title="Dupliquer" data-index="${index}">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-            </svg>
-          </button>
-          <button class="cmd-btn delete" title="Supprimer" data-index="${index}">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
+          <button class="cmd-btn locate" title="Localiser" data-index="${index}">🔍</button>
+          <button class="cmd-btn edit" title="Modifier" data-index="${index}">✏️</button>
+          <button class="cmd-btn delete" title="Supprimer" data-index="${index}">❌</button>
         </div>
       </div>
     `;
   }).join('');
   
-  // Event listeners pour édition/suppression/duplication
+  // Event listeners
   elements.commandsList.querySelectorAll('.cmd-btn.edit').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       openEditModal(parseInt(btn.dataset.index));
-    });
-  });
-  
-  elements.commandsList.querySelectorAll('.cmd-btn.duplicate').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      duplicateCommand(parseInt(btn.dataset.index));
     });
   });
   
@@ -397,68 +389,107 @@ function renderCommands() {
       deleteCommand(parseInt(btn.dataset.index));
     });
   });
+  
+  elements.commandsList.querySelectorAll('.cmd-btn.locate').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      locateCommand(parseInt(btn.dataset.index));
+    });
+  });
+  
+  // Scroll vers la commande en cours
+  if (currentPlayingIndex >= 0) {
+    const playingEl = elements.commandsList.querySelector('.command-item.playing');
+    if (playingEl) {
+      playingEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
 }
 
-function shortenSelector(selector) {
+function shortenSelector(selector, maxLen = 40) {
   if (!selector) return '';
   
   if (selector.startsWith('id=')) {
     const id = selector.substring(3);
-    if (id.length > 50) {
-      return 'id=...' + id.substring(id.length - 40);
+    if (id.length > maxLen) {
+      return 'id=...' + id.substring(id.length - (maxLen - 6));
     }
     return selector;
   }
   
   if (selector.startsWith('xpath=')) {
     const xpath = selector.substring(6);
-    if (xpath.includes('@id=')) {
+    if (xpath.includes('@id="')) {
       const match = xpath.match(/@id="([^"]+)"/);
-      if (match) return `xpath=...[@id="${match[1].substring(0, 30)}..."]`;
+      if (match) {
+        const id = match[1];
+        if (id.length > maxLen - 15) {
+          return `xpath=...[@id="...${id.substring(id.length - 20)}"]`;
+        }
+        return `xpath=...[@id="${id}"]`;
+      }
     }
-    if (xpath.includes('@formcontrolname=')) {
-      const match = xpath.match(/@formcontrolname="([^"]+)"/);
-      if (match) return `xpath=...[fcn="${match[1]}"]`;
-    }
-    if (xpath.length > 50) {
-      return 'xpath=...' + xpath.substring(xpath.length - 40);
-    }
-    return selector;
-  }
-  
-  if (selector.startsWith('css=')) {
-    const css = selector.substring(4);
-    if (css.length > 50) {
-      return 'css=...' + css.substring(css.length - 40);
+    if (xpath.length > maxLen) {
+      return 'xpath=...' + xpath.substring(xpath.length - (maxLen - 9));
     }
     return selector;
   }
   
-  return selector.length > 50 ? '...' + selector.substring(selector.length - 45) : selector;
+  if (selector.length > maxLen) {
+    return '...' + selector.substring(selector.length - (maxLen - 3));
+  }
+  return selector;
 }
 
-// ===== AJOUTER COMMANDE =====
-function openAddCommandModal() {
-  elements.addCommand.value = 'click';
-  elements.addTarget.value = '';
-  elements.addValue.value = '';
-  elements.addDescription.value = '';
-  elements.addCommandModal.hidden = false;
-}
-
-function addNewCommand() {
-  const newCmd = {
-    Command: elements.addCommand.value,
-    Target: elements.addTarget.value,
-    Value: elements.addValue.value,
-    Targets: [],
-    Description: elements.addDescription.value
-  };
+// ===== LOCALISATION =====
+async function locateCommand(index) {
+  const cmd = currentCommands[index];
+  if (!cmd || !cmd.Target) return;
   
-  currentCommands.push(newCmd);
-  elements.addCommandModal.hidden = true;
-  renderCommands();
-  setIdleUI();
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) return;
+    
+    await chrome.tabs.sendMessage(tab.id, {
+      action: 'locateElement',
+      selector: cmd.Target
+    });
+    
+    addLog('info', `Localisation: ${cmd.Target.substring(0, 50)}`);
+  } catch (e) {
+    addLog('error', 'Impossible de localiser: ' + e.message);
+  }
+}
+
+async function locateCurrentTarget() {
+  const selector = elements.editTarget.value;
+  if (!selector) return;
+  
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) return;
+    
+    const result = await chrome.tabs.sendMessage(tab.id, {
+      action: 'locateElement',
+      selector: selector
+    });
+    
+    if (result.success) {
+      addLog('success', 'Élément localisé');
+    } else {
+      addLog('error', 'Élément non trouvé');
+    }
+  } catch (e) {
+    addLog('error', e.message);
+  }
+}
+
+function copyCurrentTarget() {
+  const selector = elements.editTarget.value;
+  if (selector) {
+    navigator.clipboard.writeText(selector);
+    addLog('info', 'Sélecteur copié');
+  }
 }
 
 // ===== ÉDITION =====
@@ -467,9 +498,29 @@ function openEditModal(index) {
   const cmd = currentCommands[index];
   
   elements.editCommand.value = cmd.Command;
-  elements.editTarget.value = cmd.Target;
+  elements.editTarget.value = cmd.Target || '';
   elements.editValue.value = cmd.Value || '';
   elements.editDescription.value = cmd.Description || '';
+  
+  // Afficher les targets alternatifs
+  if (cmd.Targets && cmd.Targets.length > 0) {
+    elements.alternateTargets.innerHTML = cmd.Targets.map((t, i) => `
+      <div class="alt-target" data-selector="${escapeHtml(t)}">
+        <span class="alt-target-text" title="${escapeHtml(t)}">${shortenSelector(t, 50)}</span>
+        <button class="alt-target-use" title="Utiliser ce sélecteur">→</button>
+      </div>
+    `).join('');
+    
+    // Event listeners pour utiliser un target alternatif
+    elements.alternateTargets.querySelectorAll('.alt-target-use').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const parent = btn.closest('.alt-target');
+        elements.editTarget.value = parent.dataset.selector;
+      });
+    });
+  } else {
+    elements.alternateTargets.innerHTML = '<span class="empty-text">Aucun</span>';
+  }
   
   elements.editModal.hidden = false;
 }
@@ -488,13 +539,30 @@ function saveEditedCommand() {
   elements.editModal.hidden = true;
   editingIndex = -1;
   renderCommands();
+  addLog('info', 'Commande modifiée');
 }
 
-function duplicateCommand(index) {
-  const cmd = { ...currentCommands[index] };
-  currentCommands.splice(index + 1, 0, cmd);
+function openAddModal() {
+  elements.addCommand.value = 'click';
+  elements.addTarget.value = '';
+  elements.addValue.value = '';
+  elements.addDescription.value = '';
+  elements.addCommandModal.hidden = false;
+}
+
+function addNewCommand() {
+  currentCommands.push({
+    Command: elements.addCommand.value,
+    Target: elements.addTarget.value,
+    Value: elements.addValue.value,
+    Targets: [],
+    Description: elements.addDescription.value
+  });
+  
+  elements.addCommandModal.hidden = true;
   renderCommands();
   setIdleUI();
+  addLog('info', 'Commande ajoutée');
 }
 
 function deleteCommand(index) {
@@ -509,22 +577,13 @@ function clearCommands() {
   chrome.runtime.sendMessage({ action: 'clearCommands' });
   renderCommands();
   setIdleUI();
+  addLog('info', 'Commandes effacées');
 }
 
-// ===== SAUVEGARDE =====
-function openSaveModal() {
-  elements.scenarioName.value = `Scénario ${savedScenarios.length + 1}`;
-  elements.saveModal.hidden = false;
-  elements.scenarioName.focus();
-  elements.scenarioName.select();
-}
-
+// ===== SCÉNARIOS =====
 async function saveScenario() {
   const name = elements.scenarioName.value.trim();
-  if (!name) {
-    alert('Veuillez entrer un nom.');
-    return;
-  }
+  if (!name) return;
   
   const scenario = {
     Name: name,
@@ -543,59 +602,36 @@ async function saveScenario() {
   
   elements.saveModal.hidden = true;
   renderScenarios();
-  showSuccess('Scénario sauvegardé');
+  addLog('success', `Scénario "${name}" sauvegardé`);
   
-  // Passer à l'onglet Scénarios
+  // Aller à l'onglet scénarios
   elements.tabs.forEach(t => t.classList.remove('active'));
   elements.tabContents.forEach(c => c.classList.remove('active'));
   document.querySelector('[data-tab="scenarios"]').classList.add('active');
   document.getElementById('tab-scenarios').classList.add('active');
 }
 
-// ===== SCÉNARIOS =====
 function renderScenarios() {
   if (savedScenarios.length === 0) {
-    elements.scenariosList.innerHTML = '<p class="empty-state">Aucun scénario sauvegardé</p>';
+    elements.scenariosList.innerHTML = '<p class="empty-state">Aucun scénario</p>';
     return;
   }
   
-  elements.scenariosList.innerHTML = savedScenarios.map((scenario, index) => `
-    <div class="scenario-item" data-index="${index}">
+  elements.scenariosList.innerHTML = savedScenarios.map((s, i) => `
+    <div class="scenario-item">
       <div class="scenario-info">
-        <h4>${escapeHtml(scenario.Name)}</h4>
-        <span class="scenario-meta">${scenario.Commands.length} commandes • ${scenario.CreationDate}</span>
+        <h4>${escapeHtml(s.Name)}</h4>
+        <span class="scenario-meta">${s.Commands.length} cmd • ${s.CreationDate}</span>
       </div>
       <div class="scenario-actions">
-        <button class="scenario-btn load" data-index="${index}" title="Charger">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-        </button>
-        <button class="scenario-btn play" data-index="${index}" title="Rejouer">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-            <polygon points="8,5 19,12 8,19"/>
-          </svg>
-        </button>
-        <button class="scenario-btn export" data-index="${index}" title="Exporter">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-        </button>
-        <button class="scenario-btn delete" data-index="${index}" title="Supprimer">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="3 6 5 6 21 6"/>
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-          </svg>
-        </button>
+        <button class="scenario-btn load" data-index="${i}" title="Charger">📥</button>
+        <button class="scenario-btn play" data-index="${i}" title="Jouer">▶️</button>
+        <button class="scenario-btn export" data-index="${i}" title="Exporter">💾</button>
+        <button class="scenario-btn delete" data-index="${i}" title="Supprimer">❌</button>
       </div>
     </div>
   `).join('');
   
-  // Event listeners
   elements.scenariosList.querySelectorAll('.scenario-btn.load').forEach(btn => {
     btn.addEventListener('click', () => loadScenario(parseInt(btn.dataset.index)));
   });
@@ -614,30 +650,22 @@ function renderScenarios() {
 }
 
 function loadScenario(index) {
-  const scenario = savedScenarios[index];
-  if (!scenario) return;
-  
-  currentCommands = [...scenario.Commands];
+  currentCommands = [...savedScenarios[index].Commands];
   renderCommands();
   setIdleUI();
   
-  // Passer à l'onglet Enregistrer
   elements.tabs.forEach(t => t.classList.remove('active'));
   elements.tabContents.forEach(c => c.classList.remove('active'));
   document.querySelector('[data-tab="record"]').classList.add('active');
   document.getElementById('tab-record').classList.add('active');
   
-  showSuccess(`Scénario "${scenario.Name}" chargé`);
+  addLog('info', `Scénario "${savedScenarios[index].Name}" chargé`);
 }
 
 async function playScenario(index) {
-  const scenario = savedScenarios[index];
-  if (!scenario) return;
-  
-  currentCommands = scenario.Commands;
+  currentCommands = savedScenarios[index].Commands;
   renderCommands();
   
-  // Passer à l'onglet Enregistrer et lancer la lecture
   elements.tabs.forEach(t => t.classList.remove('active'));
   elements.tabContents.forEach(c => c.classList.remove('active'));
   document.querySelector('[data-tab="record"]').classList.add('active');
@@ -647,8 +675,8 @@ async function playScenario(index) {
 }
 
 function exportScenario(index) {
-  const scenario = savedScenarios[index];
-  downloadJSON(scenario, `${scenario.Name.replace(/\s+/g, '-')}.json`);
+  const s = savedScenarios[index];
+  downloadJSON(s, `${s.Name.replace(/\s+/g, '-')}.json`);
 }
 
 async function deleteScenario(index) {
@@ -661,14 +689,11 @@ async function deleteScenario(index) {
 // ===== EXPORT/IMPORT =====
 function exportCommands() {
   if (currentCommands.length === 0) return;
-  
-  const scenario = {
-    Name: 'Exported Scenario',
+  downloadJSON({
+    Name: 'Export',
     CreationDate: new Date().toISOString().split('T')[0],
     Commands: currentCommands
-  };
-  
-  downloadJSON(scenario, `form-recorder-${Date.now()}.json`);
+  }, `form-recorder-${Date.now()}.json`);
 }
 
 function downloadJSON(data, filename) {
@@ -689,7 +714,6 @@ async function importCommands(event) {
     const text = await file.text();
     const data = JSON.parse(text);
     
-    // Support format UI.Vision et notre format
     if (data.Commands && Array.isArray(data.Commands)) {
       currentCommands = data.Commands.map(cmd => ({
         Command: cmd.Command,
@@ -698,25 +722,14 @@ async function importCommands(event) {
         Targets: cmd.Targets || [],
         Description: cmd.Description || ''
       }));
-    } else if (data.actions && Array.isArray(data.actions)) {
-      // Ancien format
-      currentCommands = data.actions.map(action => ({
-        Command: action.type === 'input' ? 'type' : action.type,
-        Target: action.selector,
-        Value: action.value || '',
-        Targets: [],
-        Description: ''
-      }));
+      renderCommands();
+      setIdleUI();
+      addLog('success', `Importé: ${currentCommands.length} commandes`);
     } else {
-      throw new Error('Format non reconnu');
+      throw new Error('Format invalide');
     }
-    
-    renderCommands();
-    setIdleUI();
-    showSuccess(`Importé: ${currentCommands.length} commandes`);
   } catch (e) {
-    console.error('Import error:', e);
-    showError('Erreur lors de l\'import: ' + e.message);
+    addLog('error', 'Erreur import: ' + e.message);
   }
   
   elements.importInput.value = '';
@@ -728,30 +741,23 @@ async function loadSavedScenarios() {
     const result = await chrome.storage.local.get(['scenarios']);
     savedScenarios = result.scenarios || [];
   } catch (e) {
-    console.error('Error loading scenarios:', e);
     savedScenarios = [];
   }
 }
 
 async function saveScenariosToStorage() {
-  try {
-    await chrome.storage.local.set({ scenarios: savedScenarios });
-  } catch (e) {
-    console.error('Error saving scenarios:', e);
-  }
+  await chrome.storage.local.set({ scenarios: savedScenarios });
 }
 
 // ===== SETTINGS =====
 function loadSettings() {
   chrome.storage.local.get(['settings'], (result) => {
-    const settings = result.settings || {};
-    elements.recordOpenCommand.checked = settings.recordOpenCommand !== false;
-    elements.defaultWait.value = settings.defaultWait || 1000;
-    elements.typeDelay.value = settings.typeDelay || 30;
-    elements.waitTimeout.value = settings.waitTimeout || 10000;
-    elements.highlightElements.checked = settings.highlightElements !== false;
-    elements.smartWait.checked = settings.smartWait !== false;
-    elements.debugMode.checked = settings.debugMode !== false;
+    const s = result.settings || {};
+    elements.recordOpenCommand.checked = s.recordOpenCommand !== false;
+    elements.defaultWait.value = s.defaultWait || 1000;
+    elements.typeDelay.value = s.typeDelay || 20;
+    elements.waitTimeout.value = s.waitTimeout || 10000;
+    elements.highlightElements.checked = s.highlightElements !== false;
   });
 }
 
@@ -759,11 +765,9 @@ function getSettings() {
   return {
     recordOpenCommand: elements.recordOpenCommand.checked,
     defaultWait: parseInt(elements.defaultWait.value) || 1000,
-    typeDelay: parseInt(elements.typeDelay.value) || 30,
+    typeDelay: parseInt(elements.typeDelay.value) || 20,
     waitTimeout: parseInt(elements.waitTimeout.value) || 10000,
-    highlightElements: elements.highlightElements.checked,
-    smartWait: elements.smartWait.checked,
-    debugMode: elements.debugMode.checked
+    highlightElements: elements.highlightElements.checked
   };
 }
 
@@ -773,7 +777,7 @@ function saveSettings() {
   chrome.runtime.sendMessage({ action: 'updateSettings', settings });
 }
 
-// ===== UTILITAIRES =====
+// ===== UTILS =====
 function escapeHtml(text) {
   if (!text) return '';
   const div = document.createElement('div');

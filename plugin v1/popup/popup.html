@@ -17,32 +17,38 @@
         </svg>
         <div>
           <h1>Form Recorder Pro</h1>
-          <span class="version">v3.0 - Angular 19 + UI.Vision</span>
+          <span class="version">v4.0 - Style UI.Vision</span>
         </div>
       </div>
-      <button id="debugToggle" class="debug-toggle" title="Mode Debug">
-        🔍
-      </button>
     </header>
 
     <!-- Tabs -->
     <nav class="tabs">
       <button class="tab active" data-tab="record" data-testid="tab-record">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
           <circle cx="12" cy="12" r="8"/>
         </svg>
         Enregistrer
       </button>
       <button class="tab" data-tab="scenarios" data-testid="tab-scenarios">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
           <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
         </svg>
         Scénarios
       </button>
+      <button class="tab" data-tab="logs" data-testid="tab-logs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        Logs
+      </button>
       <button class="tab" data-tab="settings" data-testid="tab-settings">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
           <circle cx="12" cy="12" r="3"/>
-          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2"/>
         </svg>
         Options
       </button>
@@ -54,38 +60,38 @@
         <!-- Contrôles -->
         <div class="controls">
           <button id="recordBtn" class="btn btn-record" data-testid="record-btn">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
               <circle cx="12" cy="12" r="8"/>
             </svg>
-            <span>Enregistrer</span>
+            <span>REC</span>
           </button>
           
           <button id="stopBtn" class="btn btn-stop" disabled data-testid="stop-btn">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
               <rect x="6" y="6" width="12" height="12" rx="2"/>
             </svg>
-            <span>Arrêter</span>
+            <span>Stop</span>
           </button>
           
           <button id="playBtn" class="btn btn-play" disabled data-testid="play-btn">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
               <polygon points="8,5 19,12 8,19"/>
             </svg>
-            <span>Rejouer</span>
+            <span>Play</span>
+          </button>
+          
+          <button id="pauseBtn" class="btn btn-pause" disabled data-testid="pause-btn">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+              <rect x="6" y="4" width="4" height="16"/>
+              <rect x="14" y="4" width="4" height="16"/>
+            </svg>
           </button>
         </div>
 
         <!-- Status -->
         <div id="status" class="status" data-testid="status">
           <span class="status-icon">⏸️</span>
-          <span class="status-text">Prêt à enregistrer</span>
-        </div>
-
-        <!-- Erreur en cours -->
-        <div id="errorBanner" class="error-banner" hidden>
-          <span class="error-icon">⚠️</span>
-          <span id="errorMessage">Erreur</span>
-          <button id="dismissError" class="dismiss-btn">×</button>
+          <span class="status-text">Prêt</span>
         </div>
 
         <!-- Commandes enregistrées -->
@@ -94,14 +100,14 @@
             <h2>Commandes</h2>
             <div class="section-actions">
               <span id="commandCount" class="badge" data-testid="command-count">0</span>
-              <button id="addCommandBtn" class="btn-icon" title="Ajouter une commande">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <button id="addCommandBtn" class="btn-icon" title="Ajouter">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
                   <line x1="12" y1="5" x2="12" y2="19"/>
                   <line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
               </button>
               <button id="clearBtn" class="btn-icon" title="Effacer" disabled>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
                   <polyline points="3 6 5 6 21 6"/>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                 </svg>
@@ -109,34 +115,33 @@
             </div>
           </div>
           <div id="commandsList" class="commands-list" data-testid="commands-list">
-            <p class="empty-state">Cliquez sur "Enregistrer" pour commencer</p>
+            <p class="empty-state">Cliquez sur REC pour commencer</p>
           </div>
         </div>
 
-        <!-- Actions rapides -->
+        <!-- Actions -->
         <div class="quick-actions">
-          <button id="saveBtn" class="btn-secondary" disabled data-testid="save-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <button id="saveBtn" class="btn-secondary" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-              <polyline points="17 21 17 13 7 13 7 21"/>
             </svg>
             Sauvegarder
           </button>
-          <button id="exportBtn" class="btn-secondary" disabled data-testid="export-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <button id="exportBtn" class="btn-secondary" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            Exporter
+            Export
           </button>
-          <label class="btn-secondary" data-testid="import-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <label class="btn-secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="17 8 12 3 7 8"/>
               <line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
-            Importer
+            Import
             <input type="file" id="importInput" accept=".json" hidden>
           </label>
         </div>
@@ -148,9 +153,34 @@
           <div class="section-header">
             <h2>Scénarios sauvegardés</h2>
           </div>
-          <div id="scenariosList" class="scenarios-list" data-testid="scenarios-list">
-            <p class="empty-state">Aucun scénario sauvegardé</p>
+          <div id="scenariosList" class="scenarios-list">
+            <p class="empty-state">Aucun scénario</p>
           </div>
+        </div>
+      </section>
+
+      <!-- Tab: Logs -->
+      <section class="tab-content" id="tab-logs">
+        <div class="logs-header">
+          <h2>Logs d'exécution</h2>
+          <div class="logs-actions">
+            <button id="clearLogsBtn" class="btn-icon" title="Effacer les logs">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+            </button>
+            <button id="exportLogsBtn" class="btn-icon" title="Exporter les logs">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div id="logsContainer" class="logs-container">
+          <p class="empty-state">Aucun log</p>
         </div>
       </section>
 
@@ -160,7 +190,7 @@
           <h3>Enregistrement</h3>
           <div class="setting-item checkbox">
             <input type="checkbox" id="recordOpenCommand" checked>
-            <label for="recordOpenCommand">Enregistrer commande "open" (URL)</label>
+            <label for="recordOpenCommand">Enregistrer "open" (URL)</label>
           </div>
         </div>
         <div class="settings-group">
@@ -171,10 +201,10 @@
           </div>
           <div class="setting-item">
             <label for="typeDelay">Délai de frappe (ms)</label>
-            <input type="number" id="typeDelay" value="30" min="0" max="200" step="10">
+            <input type="number" id="typeDelay" value="20" min="0" max="200" step="10">
           </div>
           <div class="setting-item">
-            <label for="waitTimeout">Timeout recherche (ms)</label>
+            <label for="waitTimeout">Timeout (ms)</label>
             <input type="number" id="waitTimeout" value="10000" min="3000" max="30000" step="1000">
           </div>
         </div>
@@ -184,63 +214,20 @@
             <input type="checkbox" id="highlightElements" checked>
             <label for="highlightElements">Surligner les éléments</label>
           </div>
-          <div class="setting-item checkbox">
-            <input type="checkbox" id="smartWait" checked>
-            <label for="smartWait">Attente intelligente</label>
-          </div>
-          <div class="setting-item checkbox">
-            <input type="checkbox" id="debugMode" checked>
-            <label for="debugMode">Mode debug (logs visibles)</label>
-          </div>
         </div>
         <div class="settings-group">
           <h3>Compatibilité</h3>
-          <div class="setting-item">
-            <label>Optimisé pour:</label>
-            <span class="compatibility-badges">
-              <span class="compat-badge angular">Angular 19</span>
-              <span class="compat-badge">UI.Vision</span>
-            </span>
-          </div>
-        </div>
-        <div class="settings-group">
-          <h3>Commandes supportées</h3>
-          <div class="commands-help">
-            <div class="cmd-help-item">
-              <span class="cmd-name">click</span>
-              <span class="cmd-desc">Clic sur un élément</span>
-            </div>
-            <div class="cmd-help-item">
-              <span class="cmd-name">type</span>
-              <span class="cmd-desc">Saisir du texte</span>
-            </div>
-            <div class="cmd-help-item">
-              <span class="cmd-name">select</span>
-              <span class="cmd-desc">Sélectionner dans un dropdown natif</span>
-            </div>
-            <div class="cmd-help-item">
-              <span class="cmd-name">selectNgOption</span>
-              <span class="cmd-desc">Sélectionner dans ng-select Angular</span>
-            </div>
-            <div class="cmd-help-item">
-              <span class="cmd-name">open</span>
-              <span class="cmd-desc">Ouvrir une URL</span>
-            </div>
-            <div class="cmd-help-item">
-              <span class="cmd-name">waitForElementVisible</span>
-              <span class="cmd-desc">Attendre qu'un élément soit visible</span>
-            </div>
-            <div class="cmd-help-item">
-              <span class="cmd-name">pause</span>
-              <span class="cmd-desc">Pause (ms dans Value)</span>
-            </div>
+          <div class="compat-info">
+            <span class="compat-badge angular">Angular 19</span>
+            <span class="compat-badge">UI.Vision</span>
+            <span class="compat-badge">ng-select</span>
           </div>
         </div>
       </section>
     </main>
 
     <footer class="footer">
-      <span>Form Recorder Pro v3.0</span>
+      Form Recorder Pro v4.0
     </footer>
   </div>
 
@@ -248,11 +235,11 @@
   <div id="saveModal" class="modal" hidden>
     <div class="modal-overlay"></div>
     <div class="modal-content">
-      <h3>Sauvegarder le scénario</h3>
-      <input type="text" id="scenarioName" placeholder="Nom du scénario" data-testid="scenario-name-input">
+      <h3>Sauvegarder</h3>
+      <input type="text" id="scenarioName" placeholder="Nom du scénario">
       <div class="modal-actions">
         <button id="cancelSaveBtn" class="btn-secondary">Annuler</button>
-        <button id="confirmSaveBtn" class="btn btn-play">Sauvegarder</button>
+        <button id="confirmSaveBtn" class="btn btn-play">OK</button>
       </div>
     </div>
   </div>
@@ -270,34 +257,39 @@
             <option value="type">type</option>
             <option value="select">select</option>
             <option value="open">open</option>
-            <option value="selectNgOption">selectNgOption (Angular ng-select)</option>
-            <option value="clickLabel">clickLabel (Label radio/checkbox)</option>
             <option value="waitForElementVisible">waitForElementVisible</option>
-            <option value="pause">pause (attendre X ms)</option>
+            <option value="pause">pause</option>
           </select>
         </div>
         <div class="form-group">
-          <label>Target (sélecteur)</label>
-          <input type="text" id="editTarget" placeholder="id=xxx ou xpath=//... ou css=...">
-          <small class="form-hint">Formats: id=xxx, xpath=//..., css=...</small>
+          <label>Target</label>
+          <input type="text" id="editTarget" placeholder="id=xxx ou xpath=//...">
+          <div class="target-actions">
+            <button id="locateTargetBtn" class="btn-mini" title="Localiser sur la page">🔍 Localiser</button>
+            <button id="copyTargetBtn" class="btn-mini" title="Copier">📋 Copier</button>
+          </div>
         </div>
         <div class="form-group">
           <label>Value</label>
-          <input type="text" id="editValue" placeholder="Valeur (optionnel)">
+          <input type="text" id="editValue" placeholder="Valeur">
         </div>
         <div class="form-group">
           <label>Description</label>
-          <input type="text" id="editDescription" placeholder="Description (optionnel)">
+          <input type="text" id="editDescription" placeholder="Description">
+        </div>
+        <div class="form-group" id="alternateTargetsGroup">
+          <label>Targets alternatifs</label>
+          <div id="alternateTargets" class="alternate-targets"></div>
         </div>
       </div>
       <div class="modal-actions">
         <button id="cancelEditBtn" class="btn-secondary">Annuler</button>
-        <button id="confirmEditBtn" class="btn btn-play">Enregistrer</button>
+        <button id="confirmEditBtn" class="btn btn-play">OK</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal Ajouter Commande -->
+  <!-- Modal Ajouter -->
   <div id="addCommandModal" class="modal" hidden>
     <div class="modal-overlay"></div>
     <div class="modal-content modal-large">
@@ -310,23 +302,21 @@
             <option value="type">type</option>
             <option value="select">select</option>
             <option value="open">open</option>
-            <option value="selectNgOption">selectNgOption (Angular ng-select)</option>
-            <option value="clickLabel">clickLabel (Label radio/checkbox)</option>
             <option value="waitForElementVisible">waitForElementVisible</option>
-            <option value="pause">pause (attendre X ms)</option>
+            <option value="pause">pause</option>
           </select>
         </div>
         <div class="form-group">
-          <label>Target (sélecteur)</label>
-          <input type="text" id="addTarget" placeholder="id=xxx ou xpath=//... ou css=...">
+          <label>Target</label>
+          <input type="text" id="addTarget" placeholder="id=xxx ou xpath=//...">
         </div>
         <div class="form-group">
           <label>Value</label>
-          <input type="text" id="addValue" placeholder="Valeur (optionnel)">
+          <input type="text" id="addValue" placeholder="Valeur">
         </div>
         <div class="form-group">
           <label>Description</label>
-          <input type="text" id="addDescription" placeholder="Description (optionnel)">
+          <input type="text" id="addDescription" placeholder="Description">
         </div>
       </div>
       <div class="modal-actions">
