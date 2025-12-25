@@ -17,9 +17,12 @@
         </svg>
         <div>
           <h1>Form Recorder Pro</h1>
-          <span class="version">v2.3 - Angular 19 + UI.Vision</span>
+          <span class="version">v3.0 - Angular 19 + UI.Vision</span>
         </div>
       </div>
+      <button id="debugToggle" class="debug-toggle" title="Mode Debug">
+        🔍
+      </button>
     </header>
 
     <!-- Tabs -->
@@ -78,12 +81,25 @@
           <span class="status-text">Prêt à enregistrer</span>
         </div>
 
+        <!-- Erreur en cours -->
+        <div id="errorBanner" class="error-banner" hidden>
+          <span class="error-icon">⚠️</span>
+          <span id="errorMessage">Erreur</span>
+          <button id="dismissError" class="dismiss-btn">×</button>
+        </div>
+
         <!-- Commandes enregistrées -->
         <div class="section">
           <div class="section-header">
             <h2>Commandes</h2>
             <div class="section-actions">
               <span id="commandCount" class="badge" data-testid="command-count">0</span>
+              <button id="addCommandBtn" class="btn-icon" title="Ajouter une commande">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                  <line x1="12" y1="5" x2="12" y2="19"/>
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+              </button>
               <button id="clearBtn" class="btn-icon" title="Effacer" disabled>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
                   <polyline points="3 6 5 6 21 6"/>
@@ -172,6 +188,10 @@
             <input type="checkbox" id="smartWait" checked>
             <label for="smartWait">Attente intelligente</label>
           </div>
+          <div class="setting-item checkbox">
+            <input type="checkbox" id="debugMode" checked>
+            <label for="debugMode">Mode debug (logs visibles)</label>
+          </div>
         </div>
         <div class="settings-group">
           <h3>Compatibilité</h3>
@@ -183,11 +203,44 @@
             </span>
           </div>
         </div>
+        <div class="settings-group">
+          <h3>Commandes supportées</h3>
+          <div class="commands-help">
+            <div class="cmd-help-item">
+              <span class="cmd-name">click</span>
+              <span class="cmd-desc">Clic sur un élément</span>
+            </div>
+            <div class="cmd-help-item">
+              <span class="cmd-name">type</span>
+              <span class="cmd-desc">Saisir du texte</span>
+            </div>
+            <div class="cmd-help-item">
+              <span class="cmd-name">select</span>
+              <span class="cmd-desc">Sélectionner dans un dropdown natif</span>
+            </div>
+            <div class="cmd-help-item">
+              <span class="cmd-name">selectNgOption</span>
+              <span class="cmd-desc">Sélectionner dans ng-select Angular</span>
+            </div>
+            <div class="cmd-help-item">
+              <span class="cmd-name">open</span>
+              <span class="cmd-desc">Ouvrir une URL</span>
+            </div>
+            <div class="cmd-help-item">
+              <span class="cmd-name">waitForElementVisible</span>
+              <span class="cmd-desc">Attendre qu'un élément soit visible</span>
+            </div>
+            <div class="cmd-help-item">
+              <span class="cmd-name">pause</span>
+              <span class="cmd-desc">Pause (ms dans Value)</span>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
 
     <footer class="footer">
-      <span>Form Recorder Pro</span>
+      <span>Form Recorder Pro v3.0</span>
     </footer>
   </div>
 
@@ -217,13 +270,16 @@
             <option value="type">type</option>
             <option value="select">select</option>
             <option value="open">open</option>
-            <option value="selectNgOption">selectNgOption (Angular)</option>
+            <option value="selectNgOption">selectNgOption (Angular ng-select)</option>
+            <option value="clickLabel">clickLabel (Label radio/checkbox)</option>
             <option value="waitForElementVisible">waitForElementVisible</option>
+            <option value="pause">pause (attendre X ms)</option>
           </select>
         </div>
         <div class="form-group">
-          <label>Target</label>
-          <input type="text" id="editTarget" placeholder="Selector">
+          <label>Target (sélecteur)</label>
+          <input type="text" id="editTarget" placeholder="id=xxx ou xpath=//... ou css=...">
+          <small class="form-hint">Formats: id=xxx, xpath=//..., css=...</small>
         </div>
         <div class="form-group">
           <label>Value</label>
@@ -237,6 +293,45 @@
       <div class="modal-actions">
         <button id="cancelEditBtn" class="btn-secondary">Annuler</button>
         <button id="confirmEditBtn" class="btn btn-play">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Ajouter Commande -->
+  <div id="addCommandModal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-content modal-large">
+      <h3>Ajouter une commande</h3>
+      <div class="edit-form">
+        <div class="form-group">
+          <label>Commande</label>
+          <select id="addCommand">
+            <option value="click">click</option>
+            <option value="type">type</option>
+            <option value="select">select</option>
+            <option value="open">open</option>
+            <option value="selectNgOption">selectNgOption (Angular ng-select)</option>
+            <option value="clickLabel">clickLabel (Label radio/checkbox)</option>
+            <option value="waitForElementVisible">waitForElementVisible</option>
+            <option value="pause">pause (attendre X ms)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Target (sélecteur)</label>
+          <input type="text" id="addTarget" placeholder="id=xxx ou xpath=//... ou css=...">
+        </div>
+        <div class="form-group">
+          <label>Value</label>
+          <input type="text" id="addValue" placeholder="Valeur (optionnel)">
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <input type="text" id="addDescription" placeholder="Description (optionnel)">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="cancelAddBtn" class="btn-secondary">Annuler</button>
+        <button id="confirmAddBtn" class="btn btn-play">Ajouter</button>
       </div>
     </div>
   </div>

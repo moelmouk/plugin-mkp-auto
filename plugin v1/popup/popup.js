@@ -1,4 +1,4 @@
-// Popup Script - Form Recorder Pro v2.1
+// Popup Script - Form Recorder Pro v3.0
 
 // ===== ÉLÉMENTS DOM =====
 const elements = {
@@ -14,9 +14,14 @@ const elements = {
   saveBtn: document.getElementById('saveBtn'),
   exportBtn: document.getElementById('exportBtn'),
   importInput: document.getElementById('importInput'),
+  debugToggle: document.getElementById('debugToggle'),
+  addCommandBtn: document.getElementById('addCommandBtn'),
   
-  // Status
+  // Status & Errors
   status: document.getElementById('status'),
+  errorBanner: document.getElementById('errorBanner'),
+  errorMessage: document.getElementById('errorMessage'),
+  dismissError: document.getElementById('dismissError'),
   commandCount: document.getElementById('commandCount'),
   commandsList: document.getElementById('commandsList'),
   scenariosList: document.getElementById('scenariosList'),
@@ -36,19 +41,30 @@ const elements = {
   cancelEditBtn: document.getElementById('cancelEditBtn'),
   confirmEditBtn: document.getElementById('confirmEditBtn'),
   
+  // Add Command Modal
+  addCommandModal: document.getElementById('addCommandModal'),
+  addCommand: document.getElementById('addCommand'),
+  addTarget: document.getElementById('addTarget'),
+  addValue: document.getElementById('addValue'),
+  addDescription: document.getElementById('addDescription'),
+  cancelAddBtn: document.getElementById('cancelAddBtn'),
+  confirmAddBtn: document.getElementById('confirmAddBtn'),
+  
   // Settings
   recordOpenCommand: document.getElementById('recordOpenCommand'),
   defaultWait: document.getElementById('defaultWait'),
   typeDelay: document.getElementById('typeDelay'),
   waitTimeout: document.getElementById('waitTimeout'),
   highlightElements: document.getElementById('highlightElements'),
-  smartWait: document.getElementById('smartWait')
+  smartWait: document.getElementById('smartWait'),
+  debugMode: document.getElementById('debugMode')
 };
 
 // ===== ÉTAT =====
 let currentCommands = [];
 let savedScenarios = [];
 let editingIndex = -1;
+let debugModeEnabled = true;
 
 
 // ===== INITIALISATION =====
@@ -83,6 +99,13 @@ function setupEventListeners() {
   elements.saveBtn.addEventListener('click', openSaveModal);
   elements.exportBtn.addEventListener('click', exportCommands);
   elements.importInput.addEventListener('change', importCommands);
+  elements.debugToggle.addEventListener('click', toggleDebugMode);
+  elements.addCommandBtn.addEventListener('click', openAddCommandModal);
+
+  // Error banner
+  elements.dismissError.addEventListener('click', () => {
+    elements.errorBanner.hidden = true;
+  });
 
   // Save Modal
   elements.cancelSaveBtn.addEventListener('click', () => elements.saveModal.hidden = true);
@@ -94,6 +117,11 @@ function setupEventListeners() {
   elements.confirmEditBtn.addEventListener('click', saveEditedCommand);
   document.querySelector('#editModal .modal-overlay').addEventListener('click', () => elements.editModal.hidden = true);
 
+  // Add Command Modal
+  elements.cancelAddBtn.addEventListener('click', () => elements.addCommandModal.hidden = true);
+  elements.confirmAddBtn.addEventListener('click', addNewCommand);
+  document.querySelector('#addCommandModal .modal-overlay').addEventListener('click', () => elements.addCommandModal.hidden = true);
+
   // Settings
   elements.recordOpenCommand.addEventListener('change', saveSettings);
   elements.defaultWait.addEventListener('change', saveSettings);
@@ -101,6 +129,7 @@ function setupEventListeners() {
   elements.waitTimeout.addEventListener('change', saveSettings);
   elements.highlightElements.addEventListener('change', saveSettings);
   elements.smartWait.addEventListener('change', saveSettings);
+  elements.debugMode.addEventListener('change', saveSettings);
 
   // Écouter les messages du background
   chrome.runtime.onMessage.addListener((message) => {
@@ -108,8 +137,40 @@ function setupEventListeners() {
       updatePlaybackProgress(message.current, message.total);
     } else if (message.action === 'playbackComplete') {
       setIdleUI();
+      showSuccess('Lecture terminée');
+    } else if (message.action === 'commandError') {
+      showError(`Erreur commande ${message.index + 1}: ${message.error}`);
     }
   });
+}
+
+// ===== DEBUG MODE =====
+async function toggleDebugMode() {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'toggleDebug' });
+    debugModeEnabled = response.debugMode;
+    elements.debugToggle.classList.toggle('active', debugModeEnabled);
+  } catch (e) {
+    console.error('Error toggling debug:', e);
+  }
+}
+
+// ===== GESTION DES ERREURS =====
+function showError(message) {
+  elements.errorMessage.textContent = message;
+  elements.errorBanner.hidden = false;
+  elements.errorBanner.classList.add('error');
+  elements.errorBanner.classList.remove('success');
+}
+
+function showSuccess(message) {
+  elements.errorMessage.textContent = message;
+  elements.errorBanner.hidden = false;
+  elements.errorBanner.classList.add('success');
+  elements.errorBanner.classList.remove('error');
+  setTimeout(() => {
+    elements.errorBanner.hidden = true;
+  }, 3000);
 }
 
 // ===== MISE À JOUR DE L'ÉTAT =====
@@ -129,6 +190,9 @@ async function updateState() {
       currentCommands = state.commands;
       renderCommands();
     }
+    
+    debugModeEnabled = state.settings?.debugMode !== false;
+    elements.debugToggle.classList.toggle('active', debugModeEnabled);
   } catch (e) {
     console.error('Error getting state:', e);
   }
@@ -183,7 +247,7 @@ async function startRecording() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     
     if (!tab || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
-      alert('Impossible d\'enregistrer sur cette page.\nVeuillez ouvrir un site web.');
+      showError('Impossible d\'enregistrer sur cette page.\nVeuillez ouvrir un site web.');
       return;
     }
     
@@ -199,6 +263,7 @@ async function startRecording() {
       setRecordingUI();
       currentCommands = [];
       renderCommands();
+      elements.errorBanner.hidden = true;
       
       // Mettre à jour après un délai pour récupérer la commande 'open'
       setTimeout(async () => {
@@ -208,10 +273,12 @@ async function startRecording() {
           renderCommands();
         }
       }, 500);
+    } else {
+      showError('Erreur: ' + response.error);
     }
   } catch (e) {
     console.error('Error starting recording:', e);
-    alert('Erreur: ' + e.message);
+    showError('Erreur: ' + e.message);
   }
 }
 
@@ -225,6 +292,7 @@ async function stopRecording() {
     
     setIdleUI();
     renderCommands();
+    showSuccess(`${currentCommands.length} commandes enregistrées`);
   } catch (e) {
     console.error('Error stopping recording:', e);
   }
@@ -238,9 +306,11 @@ async function startPlayback() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     
     if (!tab) {
-      alert('Aucun onglet actif trouvé.');
+      showError('Aucun onglet actif trouvé.');
       return;
     }
+    
+    elements.errorBanner.hidden = true;
     
     const response = await chrome.runtime.sendMessage({
       action: 'startPlaying',
@@ -250,10 +320,12 @@ async function startPlayback() {
     
     if (response.success) {
       setPlayingUI();
+    } else {
+      showError('Erreur: ' + response.error);
     }
   } catch (e) {
     console.error('Error starting playback:', e);
-    alert('Erreur: ' + e.message);
+    showError('Erreur: ' + e.message);
   }
 }
 
@@ -271,6 +343,8 @@ function renderCommands() {
     let typeClass = cmd.Command;
     if (cmd.Command.startsWith('wait')) typeClass = 'wait';
     if (cmd.Command === 'selectNgOption') typeClass = 'select';
+    if (cmd.Command === 'clickLabel' || cmd.Command === 'clickRadioByValue') typeClass = 'click';
+    if (cmd.Command === 'pause') typeClass = 'wait';
     
     return `
       <div class="command-item" data-index="${index}">
@@ -285,6 +359,12 @@ function renderCommands() {
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
             </svg>
           </button>
+          <button class="cmd-btn duplicate" title="Dupliquer" data-index="${index}">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+          </button>
           <button class="cmd-btn delete" title="Supprimer" data-index="${index}">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18"/>
@@ -296,11 +376,18 @@ function renderCommands() {
     `;
   }).join('');
   
-  // Event listeners pour édition/suppression
+  // Event listeners pour édition/suppression/duplication
   elements.commandsList.querySelectorAll('.cmd-btn.edit').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       openEditModal(parseInt(btn.dataset.index));
+    });
+  });
+  
+  elements.commandsList.querySelectorAll('.cmd-btn.duplicate').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      duplicateCommand(parseInt(btn.dataset.index));
     });
   });
   
@@ -316,31 +403,62 @@ function shortenSelector(selector) {
   if (!selector) return '';
   
   if (selector.startsWith('id=')) {
+    const id = selector.substring(3);
+    if (id.length > 50) {
+      return 'id=...' + id.substring(id.length - 40);
+    }
     return selector;
   }
   
   if (selector.startsWith('xpath=')) {
     const xpath = selector.substring(6);
-    // Extraire le dernier élément significatif
     if (xpath.includes('@id=')) {
       const match = xpath.match(/@id="([^"]+)"/);
-      if (match) return `xpath=...[@id="${match[1]}"]...`;
+      if (match) return `xpath=...[@id="${match[1].substring(0, 30)}..."]`;
     }
-    if (xpath.length > 40) {
-      return 'xpath=...' + xpath.substring(xpath.length - 35);
+    if (xpath.includes('@formcontrolname=')) {
+      const match = xpath.match(/@formcontrolname="([^"]+)"/);
+      if (match) return `xpath=...[fcn="${match[1]}"]`;
+    }
+    if (xpath.length > 50) {
+      return 'xpath=...' + xpath.substring(xpath.length - 40);
     }
     return selector;
   }
   
   if (selector.startsWith('css=')) {
     const css = selector.substring(4);
-    if (css.length > 40) {
-      return 'css=...' + css.substring(css.length - 35);
+    if (css.length > 50) {
+      return 'css=...' + css.substring(css.length - 40);
     }
     return selector;
   }
   
-  return selector.length > 40 ? '...' + selector.substring(selector.length - 35) : selector;
+  return selector.length > 50 ? '...' + selector.substring(selector.length - 45) : selector;
+}
+
+// ===== AJOUTER COMMANDE =====
+function openAddCommandModal() {
+  elements.addCommand.value = 'click';
+  elements.addTarget.value = '';
+  elements.addValue.value = '';
+  elements.addDescription.value = '';
+  elements.addCommandModal.hidden = false;
+}
+
+function addNewCommand() {
+  const newCmd = {
+    Command: elements.addCommand.value,
+    Target: elements.addTarget.value,
+    Value: elements.addValue.value,
+    Targets: [],
+    Description: elements.addDescription.value
+  };
+  
+  currentCommands.push(newCmd);
+  elements.addCommandModal.hidden = true;
+  renderCommands();
+  setIdleUI();
 }
 
 // ===== ÉDITION =====
@@ -370,6 +488,13 @@ function saveEditedCommand() {
   elements.editModal.hidden = true;
   editingIndex = -1;
   renderCommands();
+}
+
+function duplicateCommand(index) {
+  const cmd = { ...currentCommands[index] };
+  currentCommands.splice(index + 1, 0, cmd);
+  renderCommands();
+  setIdleUI();
 }
 
 function deleteCommand(index) {
@@ -418,6 +543,7 @@ async function saveScenario() {
   
   elements.saveModal.hidden = true;
   renderScenarios();
+  showSuccess('Scénario sauvegardé');
   
   // Passer à l'onglet Scénarios
   elements.tabs.forEach(t => t.classList.remove('active'));
@@ -440,6 +566,13 @@ function renderScenarios() {
         <span class="scenario-meta">${scenario.Commands.length} commandes • ${scenario.CreationDate}</span>
       </div>
       <div class="scenario-actions">
+        <button class="scenario-btn load" data-index="${index}" title="Charger">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </button>
         <button class="scenario-btn play" data-index="${index}" title="Rejouer">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
             <polygon points="8,5 19,12 8,19"/>
@@ -463,6 +596,10 @@ function renderScenarios() {
   `).join('');
   
   // Event listeners
+  elements.scenariosList.querySelectorAll('.scenario-btn.load').forEach(btn => {
+    btn.addEventListener('click', () => loadScenario(parseInt(btn.dataset.index)));
+  });
+  
   elements.scenariosList.querySelectorAll('.scenario-btn.play').forEach(btn => {
     btn.addEventListener('click', () => playScenario(parseInt(btn.dataset.index)));
   });
@@ -474,6 +611,23 @@ function renderScenarios() {
   elements.scenariosList.querySelectorAll('.scenario-btn.delete').forEach(btn => {
     btn.addEventListener('click', () => deleteScenario(parseInt(btn.dataset.index)));
   });
+}
+
+function loadScenario(index) {
+  const scenario = savedScenarios[index];
+  if (!scenario) return;
+  
+  currentCommands = [...scenario.Commands];
+  renderCommands();
+  setIdleUI();
+  
+  // Passer à l'onglet Enregistrer
+  elements.tabs.forEach(t => t.classList.remove('active'));
+  elements.tabContents.forEach(c => c.classList.remove('active'));
+  document.querySelector('[data-tab="record"]').classList.add('active');
+  document.getElementById('tab-record').classList.add('active');
+  
+  showSuccess(`Scénario "${scenario.Name}" chargé`);
 }
 
 async function playScenario(index) {
@@ -559,10 +713,10 @@ async function importCommands(event) {
     
     renderCommands();
     setIdleUI();
-    alert(`Importé: ${currentCommands.length} commandes`);
+    showSuccess(`Importé: ${currentCommands.length} commandes`);
   } catch (e) {
     console.error('Import error:', e);
-    alert('Erreur lors de l\'import: ' + e.message);
+    showError('Erreur lors de l\'import: ' + e.message);
   }
   
   elements.importInput.value = '';
@@ -597,6 +751,7 @@ function loadSettings() {
     elements.waitTimeout.value = settings.waitTimeout || 10000;
     elements.highlightElements.checked = settings.highlightElements !== false;
     elements.smartWait.checked = settings.smartWait !== false;
+    elements.debugMode.checked = settings.debugMode !== false;
   });
 }
 
@@ -607,7 +762,8 @@ function getSettings() {
     typeDelay: parseInt(elements.typeDelay.value) || 30,
     waitTimeout: parseInt(elements.waitTimeout.value) || 10000,
     highlightElements: elements.highlightElements.checked,
-    smartWait: elements.smartWait.checked
+    smartWait: elements.smartWait.checked,
+    debugMode: elements.debugMode.checked
   };
 }
 
