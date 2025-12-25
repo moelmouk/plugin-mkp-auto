@@ -1,4 +1,4 @@
-// Background Service Worker - Form Recorder Pro v3.0
+// Background Service Worker - Form Recorder Pro v4.0
 
 let state = {
   isRecording: false,
@@ -7,16 +7,13 @@ let state = {
   commands: [],
   startTime: 0,
   currentTab: null,
-  playbackSpeed: 1,
   currentCommandIndex: 0,
   settings: {
     defaultWait: 1000,
-    typeDelay: 30,
+    typeDelay: 20,
     highlightElements: true,
-    smartWait: true,
     recordOpenCommand: true,
-    waitTimeout: 10000,
-    debugMode: true
+    waitTimeout: 10000
   }
 };
 
@@ -71,15 +68,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: true });
       break;
 
-    case 'toggleDebug':
-      state.settings.debugMode = !state.settings.debugMode;
-      // Propager au content script
-      if (state.currentTab) {
-        chrome.tabs.sendMessage(state.currentTab, { action: 'toggleDebug' }).catch(() => {});
-      }
-      sendResponse({ debugMode: state.settings.debugMode });
-      break;
-
     default:
       sendResponse({ error: 'Unknown action' });
   }
@@ -108,27 +96,22 @@ async function startRecording(tabId, settings = {}) {
       });
     }
 
-    // Injecter le content script si nécessaire
+    // Injecter le content script
     try {
       await chrome.scripting.executeScript({
         target: { tabId: tabId },
         files: ['content/content.js']
       });
-    } catch (e) {
-      // Script déjà injecté
-    }
-
-    // Injecter les styles
-    try {
       await chrome.scripting.insertCSS({
         target: { tabId: tabId },
         files: ['content/content.css']
       });
-    } catch (e) {}
+    } catch (e) {
+      console.log('[BG] Script injection:', e.message);
+    }
 
-    // Attendre un peu et notifier
     await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     try {
       await chrome.tabs.sendMessage(tabId, { 
         action: 'startRecording',
@@ -163,52 +146,35 @@ async function stopRecording() {
 }
 
 function recordCommand(data, tab) {
-  // Validation du selector
-  if (data.target && data.target.includes('function')) {
-    console.warn('[BG] Rejecting invalid selector:', data.target.substring(0, 50));
-    return;
-  }
-  
   const command = {
     Command: data.command,
     Target: data.target,
     Value: data.value || '',
-    Targets: (data.targets || []).filter(t => !t.includes('function')),
+    Targets: data.targets || [],
     Description: data.description || ''
   };
 
-  // Ajouter les alternates si présents
-  if (data.alternates && Array.isArray(data.alternates)) {
-    command.alternates = data.alternates.filter(t => !t.includes('function'));
-  }
-
-  if (data.optionText) {
-    command.optionText = data.optionText;
-  }
-  
-  if (data.isSearchable) {
-    command.isSearchable = data.isSearchable;
-  }
-
-  // Éviter les doublons pour type
-  if (command.Command === 'type') {
+  // Éviter les doublons type consécutifs sur le même élément
+  if (command.Command === 'type' && state.commands.length > 0) {
     const lastCmd = state.commands[state.commands.length - 1];
-    if (lastCmd && lastCmd.Command === 'type' && lastCmd.Target === command.Target) {
+    if (lastCmd.Command === 'type' && lastCmd.Target === command.Target) {
       lastCmd.Value = command.Value;
+      console.log('[BG] Updated type:', command.Value?.substring(0, 20));
       return;
     }
   }
 
   // Éviter les clics dupliqués consécutifs
-  if (command.Command === 'click') {
+  if (command.Command === 'click' && state.commands.length > 0) {
     const lastCmd = state.commands[state.commands.length - 1];
-    if (lastCmd && lastCmd.Command === 'click' && lastCmd.Target === command.Target) {
+    if (lastCmd.Command === 'click' && lastCmd.Target === command.Target) {
+      console.log('[BG] Skipping duplicate click');
       return;
     }
   }
 
   state.commands.push(command);
-  console.log('[BG] Recorded:', command.Command, command.Value || command.Target?.substring(0, 40));
+  console.log('[BG] Recorded:', command.Command, command.Target?.substring(0, 50));
 }
 
 async function startPlaying(commands, tabId) {
@@ -216,17 +182,14 @@ async function startPlaying(commands, tabId) {
     state.isPlaying = true;
     state.isPaused = false;
     state.currentCommandIndex = 0;
+    state.currentTab = tabId;
 
-    // Injecter le content script
+    // Injecter les scripts
     try {
       await chrome.scripting.executeScript({
         target: { tabId: tabId },
         files: ['content/content.js']
       });
-    } catch (e) {}
-
-    // Injecter les styles
-    try {
       await chrome.scripting.insertCSS({
         target: { tabId: tabId },
         files: ['content/content.css']
@@ -242,15 +205,18 @@ async function startPlaying(commands, tabId) {
     for (let i = 0; i < commands.length; i++) {
       if (!state.isPlaying) break;
 
-      while (state.isPaused) {
+      // Pause
+      while (state.isPaused && state.isPlaying) {
         await new Promise(resolve => setTimeout(resolve, 100));
-        if (!state.isPlaying) break;
       }
+      if (!state.isPlaying) break;
 
       const cmd = commands[i];
       state.currentCommandIndex = i;
-      console.log(`[BG] Playing ${i + 1}/${commands.length}:`, cmd.Command, cmd.Value || '');
+      
+      console.log(`[BG] Playing ${i + 1}/${commands.length}:`, cmd.Command, cmd.Value || cmd.Target?.substring(0, 40));
 
+      // Notifier le popup
       chrome.runtime.sendMessage({
         action: 'playbackProgress',
         current: i + 1,
@@ -258,12 +224,22 @@ async function startPlaying(commands, tabId) {
         command: cmd
       }).catch(() => {});
 
+      // Mettre à jour l'indicateur sur la page
+      try {
+        await chrome.tabs.sendMessage(tabId, {
+          action: 'updatePlaybackProgress',
+          current: i + 1,
+          total: commands.length,
+          command: cmd
+        });
+      } catch (e) {}
+
       try {
         if (cmd.Command === 'open') {
           await chrome.tabs.update(tabId, { url: cmd.Target });
           await waitForPageLoad(tabId, 20000);
           
-          // Réinjecter le content script après navigation
+          // Réinjecter après navigation
           await new Promise(resolve => setTimeout(resolve, 1500));
           try {
             await chrome.scripting.executeScript({
@@ -281,10 +257,11 @@ async function startPlaying(commands, tabId) {
           try {
             await chrome.tabs.sendMessage(tabId, { action: 'showPlaybackIndicator' });
           } catch (e) {}
+          
         } else {
           // Attendre que le content script soit prêt
           let ready = false;
-          for (let j = 0; j < 15; j++) {
+          for (let j = 0; j < 20; j++) {
             try {
               const response = await chrome.tabs.sendMessage(tabId, { action: 'ping' });
               if (response && response.ready) {
@@ -296,7 +273,7 @@ async function startPlaying(commands, tabId) {
           }
           
           if (!ready) {
-            console.warn('[BG] Content script not ready, retrying injection...');
+            console.warn('[BG] Content script not ready, retrying injection');
             try {
               await chrome.scripting.executeScript({
                 target: { tabId: tabId },
@@ -313,13 +290,17 @@ async function startPlaying(commands, tabId) {
           });
           
           if (!result || !result.success) {
-            console.warn(`[BG] Command failed: ${cmd.Command}`);
-            // Notifier le popup
+            console.warn(`[BG] Command failed:`, result?.error);
             chrome.runtime.sendMessage({
               action: 'commandError',
               index: i,
               command: cmd,
               error: result?.error || 'Unknown error'
+            }).catch(() => {});
+          } else {
+            chrome.runtime.sendMessage({
+              action: 'commandSuccess',
+              index: i
             }).catch(() => {});
           }
         }
@@ -333,8 +314,9 @@ async function startPlaying(commands, tabId) {
         }).catch(() => {});
       }
 
+      // Délai entre commandes
       await new Promise(resolve => 
-        setTimeout(resolve, state.settings.defaultWait)
+        setTimeout(resolve, state.settings.defaultWait || 1000)
       );
     }
 
@@ -367,8 +349,7 @@ async function waitForPageLoad(tabId, timeout = 20000) {
       try {
         const tab = await chrome.tabs.get(tabId);
         if (tab.status === 'complete') {
-          // Attendre encore pour Angular et les frameworks SPA
-          setTimeout(resolve, 2500);
+          setTimeout(resolve, 2000); // Attendre Angular
           return;
         }
       } catch (e) {
@@ -388,4 +369,4 @@ async function waitForPageLoad(tabId, timeout = 20000) {
   });
 }
 
-console.log('[BG] Form Recorder Pro v3.0 loaded');
+console.log('[BG] Form Recorder Pro v4.0 loaded');
