@@ -90,8 +90,15 @@ function handleStopRecording(message, sender, sendResponse) {
 }
 
 function handleRecordCommand(message, sender, sendResponse) {
-  if (recordingTabId === null || sender.tab.id !== recordingTabId) {
+  if (recordingTabId === null) {
     sendResponse({ success: false, error: 'Not recording' });
+    return;
+  }
+  
+  // Vérifier que le message vient du bon onglet
+  const senderTabId = sender.tab?.id || recordingTabId;
+  if (senderTabId !== recordingTabId) {
+    sendResponse({ success: false, error: 'Wrong tab' });
     return;
   }
   
