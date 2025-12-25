@@ -580,30 +580,37 @@
       const value = selectedOption ? selectedOption.text : element.value;
       recordCommand('select', null, value, `Sélection: ${value}`, element);
     } else if (element.type === 'checkbox' || element.type === 'radio') {
-      // Style UI.Vision: type "on" puis click sur le label
-      recordCommand('type', null, 'on', '', element);
-      
-      // Chercher et enregistrer le click sur le label
+      // Style UI.Vision: enregistrer le click sur l'élément
+      // D'abord essayer de trouver un label associé
       const elementId = getElementId(element);
+      
+      // Chercher le label par for attribute ou label parent
+      let label = null;
       if (elementId) {
-        // Chercher label avec ID = elementId + '_label'
-        const labelId = elementId + '_label';
-        const label = document.getElementById(labelId);
-        if (label) {
-          setTimeout(() => {
-            recordCommand('click', `id=${labelId}`, '', '', label);
-          }, 50);
+        label = document.querySelector(`label[for="${CSS.escape(elementId)}"]`);
+      }
+      if (!label) {
+        label = element.closest('label');
+      }
+      
+      if (label) {
+        // Cliquer sur le label
+        const labelId = getElementId(label);
+        if (labelId) {
+          recordCommand('click', `id=${labelId}`, '', label.textContent?.trim().substring(0, 40) || '', label);
         } else {
-          // Sinon click sur l'input
-          setTimeout(() => {
+          // Utiliser le texte du label
+          const labelText = label.textContent?.trim();
+          if (labelText && labelText.length < 80) {
+            const escapedText = labelText.replace(/"/g, '\\"');
+            recordCommand('click', `xpath=//label[contains(normalize-space(.), "${escapedText}")]`, '', labelText.substring(0, 40), label);
+          } else {
             recordCommand('click', null, '', '', element);
-          }, 50);
+          }
         }
       } else {
-        // Pas d'ID, enregistrer click sur l'input
-        setTimeout(() => {
-          recordCommand('click', null, '', '', element);
-        }, 50);
+        // Pas de label, cliquer directement sur l'input
+        recordCommand('click', null, '', '', element);
       }
     }
   }
