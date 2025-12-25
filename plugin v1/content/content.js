@@ -481,20 +481,39 @@
     if (!isRecording) return;
     
     const element = event.target;
+    const tagName = element.tagName.toLowerCase();
     
-    // Pour ng-select, enregistrer la recherche aussi
+    // Pour ng-select, enregistrer la saisie de recherche
     const ngSelect = element.closest('ng-select');
     if (ngSelect) {
       clearTimeout(inputDebounceTimer);
       lastInputElement = element;
       inputDebounceTimer = setTimeout(() => {
         if (lastInputElement === element && element.value) {
-          recordCommand('type', null, element.value, 'Recherche', element);
+          // Pour ng-select, utiliser un sélecteur basé sur le ng-select parent
+          const ngSelectId = getElementId(ngSelect);
+          let targetSelector = null;
+          
+          if (ngSelectId) {
+            targetSelector = `xpath=//*[@id="${ngSelectId}"]//input`;
+          } else {
+            const fcName = ngSelect.getAttribute('formcontrolname');
+            if (fcName && sanitizeAttributeValue(fcName)) {
+              targetSelector = `xpath=//ng-select[@formcontrolname="${fcName}"]//input`;
+            }
+          }
+          
+          if (targetSelector) {
+            recordCommand('type', targetSelector, element.value, 'Recherche ng-select', element);
+          } else {
+            recordCommand('type', null, element.value, 'Recherche', element);
+          }
         }
       }, 500);
       return;
     }
     
+    // Pour les inputs normaux
     clearTimeout(inputDebounceTimer);
     lastInputElement = element;
     
