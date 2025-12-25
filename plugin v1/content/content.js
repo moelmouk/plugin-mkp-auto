@@ -1,5 +1,5 @@
-// Content Script - Form Recorder Pro v4.0
-// Compatible UI.Vision - Enregistrement style UI.Vision
+// Content Script - Form Recorder Pro v4.1
+// Compatible UI.Vision - Correction génération sélecteurs
 
 (function() {
   'use strict';
@@ -24,9 +24,80 @@
     defaultWait: 1000,
     typeDelay: 20,
     highlightElements: true,
-    waitTimeout: 10000,
-    debugMode: true
+    waitTimeout: 10000
   };
+
+  // ===== VALIDATION DES IDs ET SÉLECTEURS =====
+
+  function isValidId(id) {
+    if (!id || typeof id !== 'string') return false;
+    if (id.length < 2 || id.length > 500) return false;
+    
+    // Rejeter les IDs contenant du code JavaScript
+    const invalidPatterns = [
+      'function',
+      'return',
+      'throw',
+      'new ',
+      '{',
+      '}',
+      '=>',
+      'if(',
+      'let ',
+      'var ',
+      'const ',
+      '===',
+      '!==',
+      'null'
+    ];
+    
+    for (const pattern of invalidPatterns) {
+      if (id.includes(pattern)) {
+        return false;
+      }
+    }
+    
+    // Rejeter les IDs qui ressemblent à des IDs dynamiques aléatoires courts
+    if (/^[a-f0-9]{8,12}-\d+$/.test(id)) {
+      return false;
+    }
+    
+    return true;
+  }
+
+  function getElementId(element) {
+    // Utiliser getAttribute pour éviter les getters dynamiques d'Angular
+    const id = element.getAttribute('id');
+    if (id && isValidId(id)) {
+      return id;
+    }
+    return null;
+  }
+
+  function isValidSelector(selector) {
+    if (!selector || typeof selector !== 'string') return false;
+    
+    const invalidPatterns = [
+      'function',
+      'return',
+      'throw',
+      '{',
+      '}',
+      '=>',
+      'if(',
+      'let ',
+      'var ',
+      'const '
+    ];
+    
+    for (const pattern of invalidPatterns) {
+      if (selector.includes(pattern)) {
+        return false;
+      }
+    }
+    
+    return true;
+  }
 
   // ===== GÉNÉRATION DE SÉLECTEURS STYLE UI.VISION =====
 
@@ -34,38 +105,39 @@
     const selectors = [];
     
     // 1. ID (PRIORITÉ ABSOLUE comme UI.Vision)
-    if (element.id && element.id.length > 0) {
-      // UI.Vision utilise l'ID tel quel, même s'il est très long
-      selectors.push(`id=${element.id}`);
-      selectors.push(`xpath=//*[@id="${element.id}"]`);
-      selectors.push(`css=#${CSS.escape(element.id)}`);
+    const id = getElementId(element);
+    if (id) {
+      selectors.push(`id=${id}`);
+      selectors.push(`xpath=//*[@id="${id}"]`);
+      selectors.push(`css=#${CSS.escape(id)}`);
     }
     
-    // 2. XPath absolu depuis un élément avec ID
+    // 2. XPath depuis l'ID le plus proche
     const xpathFromId = generateXPathFromNearestId(element);
-    if (xpathFromId) {
+    if (xpathFromId && isValidSelector(xpathFromId)) {
       selectors.push(`xpath=${xpathFromId}`);
     }
     
-    // 3. XPath absolu complet (comme UI.Vision le fait parfois)
-    const absoluteXPath = generateAbsoluteXPath(element);
-    if (absoluteXPath) {
-      selectors.push(`xpath=${absoluteXPath}`);
+    // 3. XPath par attributs stables
+    const xpathByAttr = generateXPathByAttributes(element);
+    if (xpathByAttr && isValidSelector(xpathByAttr)) {
+      selectors.push(`xpath=${xpathByAttr}`);
     }
     
-    // 4. XPath relatif court
-    const relativeXPath = generateShortRelativeXPath(element);
-    if (relativeXPath) {
-      selectors.push(`xpath=${relativeXPath}`);
+    // 4. XPath absolu complet
+    const absoluteXPath = generateAbsoluteXPath(element);
+    if (absoluteXPath && isValidSelector(absoluteXPath)) {
+      selectors.push(`xpath=${absoluteXPath}`);
     }
     
     // 5. CSS selector
     const cssSelector = generateCssSelector(element);
-    if (cssSelector) {
+    if (cssSelector && isValidSelector(cssSelector)) {
       selectors.push(`css=${cssSelector}`);
     }
     
-    return selectors.filter((s, i, arr) => arr.indexOf(s) === i); // Dédupliquer
+    // Dédupliquer et filtrer
+    return selectors.filter((s, i, arr) => arr.indexOf(s) === i && isValidSelector(s));
   }
 
   function generateXPathFromNearestId(element) {
@@ -73,9 +145,11 @@
     const pathParts = [];
     
     while (current && current !== document.body && current !== document.documentElement) {
-      if (current.id && current.id.length > 0) {
-        // On a trouvé un ancêtre avec ID
-        const basePath = `//*[@id="${current.id}"]`;
+      const currentId = getElementId(current);
+      
+      if (currentId) {
+        // On a trouvé un ancêtre avec ID valide
+        const basePath = `//*[@id="${currentId}"]`;
         if (pathParts.length === 0) {
           return basePath;
         }
@@ -104,6 +178,41 @@
       }
       
       current = current.parentElement;
+    }
+    
+    return null;
+  }
+
+  function generateXPathByAttributes(element) {
+    const tagName = element.tagName.toLowerCase();
+    
+    // Attributs stables par ordre de priorité
+    const attrChecks = [
+      { attr: 'formcontrolname', direct: true },
+      { attr: 'name', direct: true },
+      { attr: 'placeholder', direct: true },
+      { attr: 'aria-label', direct: true },
+      { attr: 'data-testid', direct: true },
+      { attr: 'title', direct: true },
+      { attr: 'type', direct: true, tagFilter: 'input' }
+    ];
+    
+    for (const check of attrChecks) {
+      if (check.tagFilter && tagName !== check.tagFilter) continue;
+      
+      const value = element.getAttribute(check.attr);
+      if (value && value.length > 0 && value.length < 100 && isValidSelector(value)) {
+        return `//${tagName}[@${check.attr}="${value}"]`;
+      }
+    }
+    
+    // Chercher dans les parents pour formcontrolname
+    const fcParent = element.closest('[formcontrolname]');
+    if (fcParent) {
+      const fcName = fcParent.getAttribute('formcontrolname');
+      if (fcName && isValidSelector(fcName)) {
+        return `//*[@formcontrolname="${fcName}"]//${tagName}`;
+      }
     }
     
     return null;
@@ -143,40 +252,17 @@
     return null;
   }
 
-  function generateShortRelativeXPath(element) {
-    const tagName = element.tagName.toLowerCase();
-    
-    // Par attributs stables
-    const stableAttrs = ['name', 'placeholder', 'aria-label', 'title', 'formcontrolname', 'data-testid'];
-    for (const attr of stableAttrs) {
-      const value = element.getAttribute(attr);
-      if (value && value.length < 100) {
-        return `//${tagName}[@${attr}="${value}"]`;
-      }
-    }
-    
-    // Par type pour input
-    if (tagName === 'input' && element.type) {
-      const type = element.type;
-      const parent = element.closest('[id]');
-      if (parent && parent.id) {
-        return `//*[@id="${parent.id}"]//${tagName}[@type="${type}"]`;
-      }
-    }
-    
-    return null;
-  }
-
   function generateCssSelector(element) {
-    // Construire un sélecteur CSS en remontant jusqu'à un ID
     const parts = [];
     let current = element;
     let depth = 0;
     const maxDepth = 5;
     
     while (current && current !== document.body && depth < maxDepth) {
-      if (current.id) {
-        parts.unshift(`#${CSS.escape(current.id)}`);
+      const currentId = getElementId(current);
+      
+      if (currentId) {
+        parts.unshift(`#${CSS.escape(currentId)}`);
         break;
       }
       
@@ -202,30 +288,37 @@
   }
 
   function getPrimarySelector(element) {
-    // Comme UI.Vision: priorité absolue à l'ID
-    if (element.id && element.id.length > 0) {
-      return `id=${element.id}`;
+    // Priorité aux IDs valides
+    const id = getElementId(element);
+    if (id) {
+      return `id=${id}`;
     }
     
-    // Sinon XPath depuis l'ID le plus proche
+    // XPath depuis l'ID le plus proche
     const xpathFromId = generateXPathFromNearestId(element);
-    if (xpathFromId) {
+    if (xpathFromId && isValidSelector(xpathFromId)) {
       return `xpath=${xpathFromId}`;
     }
     
-    // Sinon XPath absolu
+    // XPath par attributs
+    const xpathByAttr = generateXPathByAttributes(element);
+    if (xpathByAttr && isValidSelector(xpathByAttr)) {
+      return `xpath=${xpathByAttr}`;
+    }
+    
+    // XPath absolu
     const absoluteXPath = generateAbsoluteXPath(element);
-    if (absoluteXPath) {
+    if (absoluteXPath && isValidSelector(absoluteXPath)) {
       return `xpath=${absoluteXPath}`;
     }
     
     // Fallback CSS
     const cssSelector = generateCssSelector(element);
-    if (cssSelector) {
+    if (cssSelector && isValidSelector(cssSelector)) {
       return `css=${cssSelector}`;
     }
     
-    return `xpath=${generateAbsoluteXPath(element)}`;
+    return null;
   }
 
   // ===== ENREGISTREMENT DES ACTIONS =====
@@ -238,17 +331,17 @@
     
     if (element) {
       targets = generateUIVisionSelectors(element);
-      if (!primaryTarget) {
+      if (!primaryTarget || !isValidSelector(primaryTarget)) {
         primaryTarget = getPrimarySelector(element);
       }
     }
     
-    if (!primaryTarget) {
-      console.warn('[FR] No valid selector found');
+    if (!primaryTarget || !isValidSelector(primaryTarget)) {
+      console.warn('[FR] No valid selector found, skipping');
       return;
     }
     
-    console.log('[FR] Recording:', command, primaryTarget.substring(0, 60));
+    console.log('[FR] Recording:', command, primaryTarget.substring(0, 80));
     
     chrome.runtime.sendMessage({
       action: 'recordCommand',
@@ -256,7 +349,7 @@
         command: command,
         target: primaryTarget,
         value: value || '',
-        targets: targets,
+        targets: targets.filter(t => isValidSelector(t)),
         description: description || ''
       }
     });
@@ -281,21 +374,15 @@
     lastClickTime = now;
     lastClickTarget = element;
     
-    // Pour les inputs radio/checkbox, laisser handleChange gérer si c'est l'input directement
-    // Mais enregistrer le clic si c'est sur le label
+    // Pour les inputs radio/checkbox, laisser handleChange gérer
     if (tagName === 'input' && (element.type === 'radio' || element.type === 'checkbox')) {
-      // UI.Vision enregistre souvent un "type" avec value "on" puis un click sur le label
-      // On laisse handleChange s'en occuper
       return;
     }
-    
-    // Pour les ng-option, enregistrer normalement le clic
-    // C'est comme ça que UI.Vision fonctionne: click sur le container, puis click sur l'option
     
     // Description basée sur le contenu
     let description = '';
     const textContent = element.textContent?.trim();
-    if (textContent && textContent.length < 50) {
+    if (textContent && textContent.length < 50 && textContent.length > 0) {
       description = textContent;
     }
     
@@ -306,17 +393,15 @@
     if (!isRecording) return;
     
     const element = event.target;
-    const tagName = element.tagName.toLowerCase();
     
-    // Ne pas enregistrer les inputs dans ng-select (ce sont des recherches)
+    // Pour ng-select, enregistrer la recherche aussi
     const ngSelect = element.closest('ng-select');
     if (ngSelect) {
-      // Pour ng-select searchable, enregistrer la frappe
       clearTimeout(inputDebounceTimer);
       lastInputElement = element;
       inputDebounceTimer = setTimeout(() => {
         if (lastInputElement === element && element.value) {
-          recordCommand('type', null, element.value, 'Recherche ng-select', element);
+          recordCommand('type', null, element.value, 'Recherche', element);
         }
       }, 500);
       return;
@@ -346,19 +431,27 @@
       const value = selectedOption ? selectedOption.text : element.value;
       recordCommand('select', null, value, `Sélection: ${value}`, element);
     } else if (element.type === 'checkbox' || element.type === 'radio') {
-      // UI.Vision fait: type avec "on" puis click sur le label
-      // On enregistre un type "on" sur l'input
+      // Style UI.Vision: type "on" puis click sur le label
       recordCommand('type', null, 'on', '', element);
       
-      // Et on enregistre aussi le click sur le label associé s'il existe
-      const labelId = element.id ? element.id + '_label' : null;
-      const label = labelId ? document.getElementById(labelId) : null;
-      if (label) {
-        setTimeout(() => {
-          recordCommand('click', `id=${labelId}`, '', '', label);
-        }, 50);
+      // Chercher et enregistrer le click sur le label
+      const elementId = getElementId(element);
+      if (elementId) {
+        // Chercher label avec ID = elementId + '_label'
+        const labelId = elementId + '_label';
+        const label = document.getElementById(labelId);
+        if (label) {
+          setTimeout(() => {
+            recordCommand('click', `id=${labelId}`, '', '', label);
+          }, 50);
+        } else {
+          // Sinon click sur l'input
+          setTimeout(() => {
+            recordCommand('click', null, '', '', element);
+          }, 50);
+        }
       } else {
-        // Sinon click sur l'input lui-même
+        // Pas d'ID, enregistrer click sur l'input
         setTimeout(() => {
           recordCommand('click', null, '', '', element);
         }, 50);
@@ -381,6 +474,7 @@
       // Essayer les sélecteurs alternatifs
       if (command.Targets && command.Targets.length > 0) {
         for (const selector of command.Targets) {
+          if (!isValidSelector(selector)) continue;
           element = findElementBySelector(selector);
           if (element && isElementInteractable(element)) {
             return { element, selector };
@@ -399,23 +493,17 @@
     const rect = element.getBoundingClientRect();
     const style = window.getComputedStyle(element);
     
-    // Vérifier visibilité
     if (rect.width === 0 || rect.height === 0) return false;
     if (style.visibility === 'hidden') return false;
     if (style.display === 'none') return false;
     if (style.opacity === '0') return false;
     
-    // Vérifier si dans le viewport (avec marge)
-    const inViewport = rect.top < window.innerHeight + 100 && 
-                       rect.bottom > -100 &&
-                       rect.left < window.innerWidth + 100 && 
-                       rect.right > -100;
-    
-    return inViewport;
+    return true;
   }
 
   function findElementBySelector(selector) {
     if (!selector || typeof selector !== 'string') return null;
+    if (!isValidSelector(selector)) return null;
     
     try {
       if (selector.startsWith('id=')) {
@@ -510,7 +598,6 @@
     element.focus();
     await sleep(30);
     
-    // Simuler séquence complète d'événements souris
     const rect = element.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
@@ -592,6 +679,10 @@
   }
 
   function locateElement(selector) {
+    if (!isValidSelector(selector)) {
+      return { success: false, error: 'Invalid selector' };
+    }
+    
     const element = findElementBySelector(selector);
     if (!element) {
       return { success: false, error: 'Element not found' };
@@ -756,5 +847,5 @@
     return true;
   });
 
-  console.log('[FR] Form Recorder Pro v4.0 loaded');
+  console.log('[FR] Form Recorder Pro v4.1 loaded');
 })();
