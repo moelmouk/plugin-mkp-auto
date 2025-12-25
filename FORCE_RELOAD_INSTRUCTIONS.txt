@@ -1,0 +1,112 @@
+╔══════════════════════════════════════════════════════════════╗
+║  🔄 INSTRUCTIONS POUR FORCER LE RECHARGEMENT DE L'EXTENSION  ║
+╚══════════════════════════════════════════════════════════════╝
+
+⚠️  IMPORTANT: Chrome met en cache l'ancienne version du code.
+   Il faut forcer un rechargement complet !
+
+┌──────────────────────────────────────────────────────────────┐
+│  MÉTHODE 1: Rechargement complet (RECOMMANDÉ)               │
+└──────────────────────────────────────────────────────────────┘
+
+1. Allez dans: chrome://extensions/
+
+2. Trouvez "Form Recorder Pro"
+
+3. Cliquez sur le bouton "SUPPRIMER" (oui, supprimez-la)
+
+4. Cliquez sur "Charger l'extension non empaquetée"
+
+5. Sélectionnez le dossier /app
+
+6. L'extension est maintenant avec la nouvelle version ! ✅
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  MÉTHODE 2: Rechargement simple (si Méthode 1 ne marche pas)│
+└──────────────────────────────────────────────────────────────┘
+
+1. chrome://extensions/
+
+2. Désactivez l'extension (toggle OFF)
+
+3. Cliquez sur "Recharger" 🔄
+
+4. Activez l'extension (toggle ON)
+
+5. Fermez TOUS les onglets Chrome
+
+6. Ouvrez un NOUVEL onglet Chrome
+
+7. Testez l'extension
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  VÉRIFICATION QUE ÇA FONCTIONNE                              │
+└──────────────────────────────────────────────────────────────┘
+
+1. Dans chrome://extensions/
+
+2. Sous "Form Recorder Pro", cliquez sur "Service worker"
+
+3. Une console s'ouvre, vous DEVEZ voir:
+
+   [FR BG] Form Recorder Pro v3.0.1 background script loaded - FIXED
+   
+   ☝️ Si vous voyez ce message, c'est la bonne version !
+
+4. Maintenant, ouvrez TEST_DEMO.html
+
+5. Ouvrez le popup de l'extension (clic sur l'icône 🎥)
+
+6. Cliquez sur "Démarrer l'enregistrement"
+
+7. Dans la console du Service Worker, vous devriez voir:
+
+   [FR BG] Message received: startRecording
+   [FR BG] handleStartRecording called
+   [FR BG] Active tabs found: 1
+   [FR BG] Using tab: 123 file:///...
+   [FR BG] Recording started: Scenario ...
+   
+   ✅ Si vous voyez ces messages, ÇA FONCTIONNE !
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  SI ÇA NE FONCTIONNE TOUJOURS PAS                           │
+└──────────────────────────────────────────────────────────────┘
+
+1. Fermez COMPLÈTEMENT Chrome (toutes les fenêtres)
+
+2. Ouvrez le gestionnaire de tâches Windows/Mac/Linux
+
+3. Tuez tous les processus "Chrome" restants
+
+4. Relancez Chrome
+
+5. Rechargez l'extension (Méthode 1)
+
+6. Testez à nouveau
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  ERREUR ATTENDUE SI PAS RECHARGÉ:                           │
+└──────────────────────────────────────────────────────────────┘
+
+Error in event handler: TypeError: Cannot read properties of 
+undefined (reading 'id') at handleStartRecording 
+(chrome-extension://.../background.js:47:31)
+
+☝️ Cette erreur = ancienne version toujours en cache !
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  VERSION CORRIGÉE:                                           │
+└──────────────────────────────────────────────────────────────┘
+
+✅ background.js ligne 47 = 
+   "// Récupérer l'onglet actif explicitement"
+
+❌ Ancienne version ligne 47 = 
+   "recordingTabId = sender.tab.id;"
+
