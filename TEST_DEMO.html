@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page de Test - Form Recorder Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #999;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .radio-group,
+        .checkbox-group {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .radio-option,
+        .checkbox-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        input[type="radio"],
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        button {
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .success-message {
+            display: none;
+            padding: 20px;
+            background: #4caf50;
+            color: white;
+            border-radius: 6px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .info-box {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .info-box h3 {
+            color: #1976d2;
+            margin-bottom: 8px;
+        }
+        
+        .info-box p {
+            color: #555;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Page de Test - Form Recorder Pro</h1>
+        <p class="subtitle">Utilisez cette page pour tester l'enregistrement et la lecture</p>
+        
+        <div class="info-box">
+            <h3>📝 Instructions</h3>
+            <p>
+                1. Cliquez sur l'icône Form Recorder Pro<br>
+                2. Démarrez l'enregistrement<br>
+                3. Remplissez ce formulaire<br>
+                4. Arrêtez l'enregistrement<br>
+                5. Rechargez la page (F5)<br>
+                6. Lancez la lecture du scénario
+            </p>
+        </div>
+        
+        <form id="testForm">
+            <!-- Informations personnelles -->
+            <h2 style="margin-bottom: 20px; color: #667eea;">Informations Personnelles</h2>
+            
+            <div class="form-group">
+                <label for="civilite">Civilité *</label>
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" id="monsieur" name="civilite" value="M">
+                        <label for="monsieur">Monsieur</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="madame" name="civilite" value="Mme">
+                        <label for="madame">Madame</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="nom">Nom *</label>
+                <input type="text" id="nom" name="nom" placeholder="Votre nom">
+            </div>
+            
+            <div class="form-group">
+                <label for="prenom">Prénom *</label>
+                <input type="text" id="prenom" name="prenom" placeholder="Votre prénom">
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email *</label>
+                <input type="email" id="email" name="email" placeholder="exemple@email.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="telephone">Téléphone</label>
+                <input type="tel" id="telephone" name="telephone" placeholder="+33 6 12 34 56 78">
+            </div>
+            
+            <!-- Profession -->
+            <h2 style="margin: 30px 0 20px; color: #667eea;">Profession</h2>
+            
+            <div class="form-group">
+                <label for="profession">Secteur d'activité *</label>
+                <select id="profession" name="profession">
+                    <option value="">-- Sélectionnez --</option>
+                    <option value="informatique">Informatique</option>
+                    <option value="commerce">Commerce</option>
+                    <option value="sante">Santé</option>
+                    <option value="education">Éducation</option>
+                    <option value="autre">Autre</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="experience">Années d'expérience</label>
+                <select id="experience" name="experience">
+                    <option value="">-- Sélectionnez --</option>
+                    <option value="0-2">0-2 ans</option>
+                    <option value="3-5">3-5 ans</option>
+                    <option value="6-10">6-10 ans</option>
+                    <option value="10+">Plus de 10 ans</option>
+                </select>
+            </div>
+            
+            <!-- Intérêts -->
+            <h2 style="margin: 30px 0 20px; color: #667eea;">Centres d'intérêt</h2>
+            
+            <div class="form-group">
+                <label>Technologies d'intérêt</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="web" name="interets" value="web">
+                        <label for="web">Développement Web</label>
+                    </div>
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="mobile" name="interets" value="mobile">
+                        <label for="mobile">Mobile</label>
+                    </div>
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="ia" name="interets" value="ia">
+                        <label for="ia">Intelligence Artificielle</label>
+                    </div>
+                    <div class="checkbox-option">
+                        <input type="checkbox" id="cloud" name="interets" value="cloud">
+                        <label for="cloud">Cloud</label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Message -->
+            <div class="form-group">
+                <label for="message">Message</label>
+                <textarea id="message" name="message" rows="4" placeholder="Votre message..."></textarea>
+            </div>
+            
+            <!-- Conditions -->
+            <div class="form-group">
+                <div class="checkbox-option">
+                    <input type="checkbox" id="cgu" name="cgu" value="1">
+                    <label for="cgu">J'accepte les conditions générales d'utilisation *</label>
+                </div>
+            </div>
+            
+            <button type="submit">Envoyer</button>
+        </form>
+        
+        <div id="successMessage" class="success-message">
+            ✅ Formulaire soumis avec succès !
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('testForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Afficher le message de succès
+            const successMessage = document.getElementById('successMessage');
+            successMessage.style.display = 'block';
+            
+            // Scroller vers le message
+            successMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Masquer après 3 secondes
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 3000);
+            
+            console.log('✅ Formulaire soumis avec succès !');
+        });
+    </script>
+</body>
+</html>

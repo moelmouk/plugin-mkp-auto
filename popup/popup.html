@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Form Recorder Pro</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-title">
+        <span class="logo">🎥</span>
+        <h1>Form Recorder Pro</h1>
+      </div>
+      <div class="header-version">v3.0</div>
+    </header>
+
+    <!-- Contrôles d'enregistrement -->
+    <section class="recording-controls" id="recordingSection">
+      <div class="status-indicator" id="statusIndicator">
+        <span class="status-dot" id="statusDot"></span>
+        <span class="status-text" id="statusText">Prêt</span>
+      </div>
+      
+      <div class="control-buttons">
+        <button id="startRecordBtn" class="btn btn-primary">
+          <span class="icon">⏺</span> Démarrer l'enregistrement
+        </button>
+        <button id="stopRecordBtn" class="btn btn-danger" style="display: none;">
+          <span class="icon">⏹</span> Arrêter
+        </button>
+      </div>
+
+      <div class="scenario-name" style="display: none;" id="scenarioNameSection">
+        <input type="text" id="scenarioNameInput" placeholder="Nom du scénario" class="input">
+      </div>
+    </section>
+
+    <!-- Navigation -->
+    <nav class="tabs">
+      <button class="tab active" data-tab="scenarios">
+        <span class="icon">📁</span> Scénarios
+      </button>
+      <button class="tab" data-tab="settings">
+        <span class="icon">⚙️</span> Paramètres
+      </button>
+      <button class="tab" data-tab="export">
+        <span class="icon">📥</span> Export
+      </button>
+    </nav>
+
+    <!-- Contenu - Scénarios -->
+    <section class="tab-content active" id="scenariosTab">
+      <!-- Barre d'outils -->
+      <div class="toolbar">
+        <button id="newFolderBtn" class="btn btn-small">
+          <span class="icon">📂</span> Nouveau dossier
+        </button>
+        <button id="refreshBtn" class="btn btn-small">
+          <span class="icon">🔄</span>
+        </button>
+        <div class="search-box">
+          <input type="text" id="searchInput" placeholder="Rechercher..." class="input input-small">
+        </div>
+      </div>
+
+      <!-- Arborescence de dossiers et scénarios -->
+      <div class="tree-container" id="treeContainer">
+        <div class="tree-loading">Chargement...</div>
+      </div>
+
+      <!-- Actions groupies -->
+      <div class="group-actions" id="groupActions" style="display: none;">
+        <span class="group-count" id="groupCount">0 sélectionnés</span>
+        <button id="playGroupBtn" class="btn btn-small btn-success">
+          <span class="icon">▶</span> Lancer la sélection
+        </button>
+        <button id="deleteGroupBtn" class="btn btn-small btn-danger">
+          <span class="icon">🗑️</span> Supprimer
+        </button>
+      </div>
+    </section>
+
+    <!-- Contenu - Paramètres -->
+    <section class="tab-content" id="settingsTab">
+      <div class="settings-group">
+        <h3>Lecture</h3>
+        
+        <label class="setting-item">
+          <input type="checkbox" id="settingHighlight" checked>
+          <span>Surligner les éléments</span>
+        </label>
+        
+        <label class="setting-item">
+          <input type="checkbox" id="settingRespectTiming" checked>
+          <span>Respecter le timing enregistré</span>
+        </label>
+        
+        <label class="setting-item">
+          <input type="checkbox" id="settingStopOnError">
+          <span>Arrêter en cas d'erreur</span>
+        </label>
+
+        <div class="setting-item">
+          <label>Délai par défaut (ms)</label>
+          <input type="number" id="settingDefaultDelay" value="300" min="0" max="5000" class="input input-small">
+        </div>
+
+        <div class="setting-item">
+          <label>Délai maximum (ms)</label>
+          <input type="number" id="settingMaxDelay" value="5000" min="1000" max="30000" class="input input-small">
+        </div>
+
+        <div class="setting-item">
+          <label>Timeout d'attente (ms)</label>
+          <input type="number" id="settingWaitTimeout" value="10000" min="1000" max="60000" class="input input-small">
+        </div>
+
+        <div class="setting-item">
+          <label>Délai de frappe (ms)</label>
+          <input type="number" id="settingTypeDelay" value="50" min="0" max="500" class="input input-small">
+        </label>
+      </div>
+
+      <div class="settings-group">
+        <h3>Avancé</h3>
+        
+        <div class="setting-item">
+          <label>Tentatives de retry</label>
+          <input type="number" id="settingRetryAttempts" value="3" min="1" max="10" class="input input-small">
+        </div>
+
+        <div class="setting-item">
+          <label>Délai entre retry (ms)</label>
+          <input type="number" id="settingRetryDelay" value="500" min="100" max="3000" class="input input-small">
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <button id="saveSettingsBtn" class="btn btn-primary">Enregistrer</button>
+        <button id="resetSettingsBtn" class="btn btn-secondary">Réinitialiser</button>
+      </div>
+    </section>
+
+    <!-- Contenu - Export/Import -->
+    <section class="tab-content" id="exportTab">
+      <div class="export-section">
+        <h3>Exporter tous les scénarios</h3>
+        <p class="help-text">Exporte tous les scénarios et dossiers dans un fichier JSON</p>
+        <button id="exportAllBtn" class="btn btn-primary">
+          <span class="icon">📥</span> Exporter tout
+        </button>
+      </div>
+
+      <div class="export-section">
+        <h3>Importer des scénarios</h3>
+        <p class="help-text">Importe des scénarios depuis un fichier JSON</p>
+        <input type="file" id="importFileInput" accept=".json" style="display: none;">
+        <button id="importBtn" class="btn btn-primary">
+          <span class="icon">📥</span> Importer
+        </button>
+      </div>
+
+      <div class="export-section">
+        <h3>Réinitialiser</h3>
+        <p class="help-text danger">Supprime TOUS les scénarios et dossiers. Cette action est irréversible !</p>
+        <button id="clearAllBtn" class="btn btn-danger">
+          <span class="icon">⚠️</span> Tout supprimer
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Modal de lecture de scénario -->
+  <div id="playModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h3>Lancer le scénario</h3>
+      <div class="modal-body">
+        <p id="playScenarioName"></p>
+        <p class="help-text">Choisissez comment lancer ce scénario :</p>
+        
+        <label class="setting-item">
+          <input type="radio" name="playMode" value="current" checked>
+          <span>Onglet actuel</span>
+        </label>
+        
+        <label class="setting-item">
+          <input type="radio" name="playMode" value="new">
+          <span>Nouvel onglet</span>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button id="playModalConfirm" class="btn btn-primary">Lancer</button>
+        <button id="playModalCancel" class="btn btn-secondary">Annuler</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de lecture groupe -->
+  <div id="playGroupModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h3>Lancer les scénarios sélectionnés</h3>
+      <div class="modal-body">
+        <p id="playGroupCount"></p>
+        <p class="help-text">Mode d'exécution :</p>
+        
+        <label class="setting-item">
+          <input type="radio" name="groupPlayMode" value="sequential" checked>
+          <span>Séquentiel (un par un dans l'onglet actuel)</span>
+        </label>
+        
+        <label class="setting-item">
+          <input type="radio" name="groupPlayMode" value="parallel">
+          <span>Parallèle (chacun dans un nouvel onglet)</span>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button id="playGroupModalConfirm" class="btn btn-primary">Lancer</button>
+        <button id="playGroupModalCancel" class="btn btn-secondary">Annuler</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification toast -->
+  <div id="toast" class="toast" style="display: none;"></div>
+
+  <script src="../utils/storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

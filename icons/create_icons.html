@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+function createIcon(size) {
+  const canvas = document.getElementById('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  
+  // Gradient background
+  const gradient = ctx.createLinearGradient(0, 0, size, size);
+  gradient.addColorStop(0, '#667eea');
+  gradient.addColorStop(1, '#764ba2');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  
+  // Camera emoji approximation
+  ctx.fillStyle = 'white';
+  ctx.font = `${size * 0.6}px Arial`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🎥', size / 2, size / 2);
+  
+  return canvas.toDataURL();
+}
+
+// Generate icons
+[16, 48, 128].forEach(size => {
+  const img = new Image();
+  img.src = createIcon(size);
+  img.onload = () => {
+    const link = document.createElement('a');
+    link.download = `icon${size}.png`;
+    link.href = img.src;
+    link.click();
+  };
+});
+</script>
+</body>
+</html>
