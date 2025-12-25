@@ -264,9 +264,11 @@
     const attrChecks = [
       { attr: 'formcontrolname', direct: true },
       { attr: 'name', direct: true },
+      { attr: 'data-testid', direct: true },
+      { attr: 'data-cy', direct: true },
+      { attr: 'data-test', direct: true },
       { attr: 'placeholder', direct: true },
       { attr: 'aria-label', direct: true },
-      { attr: 'data-testid', direct: true },
       { attr: 'title', direct: true },
       { attr: 'type', direct: true, tagFilter: 'input' }
     ];
@@ -274,8 +276,9 @@
     for (const check of attrChecks) {
       if (check.tagFilter && tagName !== check.tagFilter) continue;
       
-      const value = element.getAttribute(check.attr);
-      if (value && value.length > 0 && value.length < 100 && isValidSelector(value)) {
+      const rawValue = element.getAttribute(check.attr);
+      const value = sanitizeAttributeValue(rawValue);
+      if (value && value.length > 0 && value.length < 100) {
         return `//${tagName}[@${check.attr}="${value}"]`;
       }
     }
@@ -283,8 +286,9 @@
     // Chercher dans les parents pour formcontrolname
     const fcParent = element.closest('[formcontrolname]');
     if (fcParent) {
-      const fcName = fcParent.getAttribute('formcontrolname');
-      if (fcName && isValidSelector(fcName)) {
+      const rawFcName = fcParent.getAttribute('formcontrolname');
+      const fcName = sanitizeAttributeValue(rawFcName);
+      if (fcName) {
         return `//*[@formcontrolname="${fcName}"]//${tagName}`;
       }
     }
