@@ -1,37 +1,28 @@
-# Form Recorder Pro v3.0
+# Form Recorder Pro v4.2
 
 Un plugin Chrome professionnel pour enregistrer et rejouer vos formulaires, **100% compatible avec UI.Vision RPA**, optimisé pour **Angular 19**.
 
-## 🆕 Nouveautés v3.0
+## 🆕 Nouveautés v4.2 - Validation Renforcée
 
-### Mode Debug
-- 🔍 **Panneau de debug en temps réel** : Visualisez les logs directement sur la page
-- ✅ Logs de succès, ⚠️ avertissements, ❌ erreurs avec horodatage
-- Activation/désactivation via le bouton 🔍 dans l'interface
+### Correction Critique des Sélecteurs
+- 🔒 **Validation stricte des IDs** : Détection et rejet automatique des IDs contenant du code JavaScript
+- ✅ **Utilisation de `getAttribute('id')`** au lieu de `element.id` pour éviter les getters dynamiques Angular
+- 🛡️ **Liste étendue de patterns invalides** : function, return, throw, prototype, etc.
+- 🔍 **Logs de debug** pour les sélecteurs rejetés
 
-### Amélioration de la gestion des erreurs
-- **Bannière d'erreur** visible dans le popup
-- **Feedback détaillé** sur chaque commande en échec
-- **Recherche de fallback** améliorée pour les sélecteurs
+### Amélioration ng-select Angular
+- 📋 **Sélection par texte** pour les options de dropdown (plus robuste)
+- 🎯 **Sélecteurs basés sur formcontrolname** pour les composants ng-select
+- 🔄 **Gestion automatique** ouverture dropdown → recherche → sélection option
 
-### Nouvelles commandes
-- `clickLabel` : Clic sur label de radio/checkbox par texte
-- `clickRadioByValue` : Sélection de radio par valeur
-- `waitForElementVisible` : Attendre qu'un élément soit visible
-- `pause` : Pause de X millisecondes
-- `typeAndSearch` : Taper et chercher dans un ng-select
+### Gestion des Radio/Checkbox
+- ✨ **Détection automatique des labels** associés (par `for` ou parent `<label>`)
+- 📝 **Sélecteurs par texte du label** comme fallback
 
-### Optimisation des sélecteurs
-- **Priorité aux IDs** même longs (IDs Angular)
-- **Meilleure détection ng-select** avec autocomplétion
-- **Normalisation des textes** (accents, espaces, casse)
-- **Fallback automatique** sur Targets alternatifs
-
-### Interface améliorée
-- Bouton **Ajouter une commande** manuellement
-- Bouton **Dupliquer** une commande
-- Bouton **Charger** un scénario (sans le jouer)
-- Liste des commandes supportées dans les Options
+### Robustesse Améliorée
+- 📏 **Limite de profondeur XPath** (max 15 niveaux) pour éviter les chemins trop longs
+- 🧹 **Fonction sanitizeAttributeValue** pour nettoyer les valeurs d'attributs
+- ⚡ **Performance optimisée** avec validation précoce des sélecteurs
 
 ## ✨ Fonctionnalités
 
