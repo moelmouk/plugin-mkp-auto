@@ -1,5 +1,5 @@
-// Content Script - Form Recorder Pro v4.1
-// Compatible UI.Vision - Correction génération sélecteurs
+// Content Script - Form Recorder Pro v4.2
+// Compatible UI.Vision - Validation renforcée des sélecteurs
 
 (function() {
   'use strict';
@@ -27,13 +27,15 @@
     waitTimeout: 10000
   };
 
-  // ===== VALIDATION DES IDs ET SÉLECTEURS =====
+  // ===== VALIDATION DES IDs ET SÉLECTEURS (RENFORCÉE) =====
 
   function isValidId(id) {
+    // Validation stricte des IDs
     if (!id || typeof id !== 'string') return false;
-    if (id.length < 2 || id.length > 500) return false;
+    if (id.length < 1 || id.length > 200) return false;
     
-    // Rejeter les IDs contenant du code JavaScript
+    // Un ID valide ne doit contenir que des caractères alphanumériques, tirets, underscores
+    // et ne doit pas ressembler à du code JavaScript
     const invalidPatterns = [
       'function',
       'return',
@@ -43,22 +45,65 @@
       '}',
       '=>',
       'if(',
+      'if (',
+      'else',
       'let ',
       'var ',
       'const ',
       '===',
       '!==',
-      'null'
+      '==',
+      '!=',
+      'null',
+      'undefined',
+      'typeof',
+      'instanceof',
+      'this.',
+      'window.',
+      'document.',
+      '.call(',
+      '.apply(',
+      '.bind(',
+      'prototype',
+      '__proto__',
+      'Object.',
+      'Array.',
+      'String.',
+      'Number.',
+      'Boolean.',
+      'Math.',
+      'JSON.',
+      'console.',
+      '()',
+      ');',
+      '();',
+      '[native code]',
+      'use strict'
     ];
     
+    const idLower = id.toLowerCase();
     for (const pattern of invalidPatterns) {
-      if (id.includes(pattern)) {
+      if (idLower.includes(pattern.toLowerCase())) {
+        console.warn('[FR] Invalid ID rejected (contains code pattern):', id.substring(0, 50));
         return false;
       }
     }
     
-    // Rejeter les IDs qui ressemblent à des IDs dynamiques aléatoires courts
+    // Rejeter les IDs qui ressemblent à des IDs dynamiques aléatoires
     if (/^[a-f0-9]{8,12}-\d+$/.test(id)) {
+      return false;
+    }
+    
+    // Rejeter si contient trop de caractères spéciaux
+    const specialCharsCount = (id.match(/[^a-zA-Z0-9_\-]/g) || []).length;
+    if (specialCharsCount > 5) {
+      console.warn('[FR] Invalid ID rejected (too many special chars):', id.substring(0, 50));
+      return false;
+    }
+    
+    // Rejeter si ressemble à une fonction stringifiée (commence par "function")
+    if (id.trim().startsWith('function')) {
+      console.warn('[FR] Invalid ID rejected (starts with function):', id.substring(0, 50));
       return false;
     }
     
@@ -66,16 +111,22 @@
   }
 
   function getElementId(element) {
-    // Utiliser getAttribute pour éviter les getters dynamiques d'Angular
-    const id = element.getAttribute('id');
-    if (id && isValidId(id)) {
-      return id;
+    // CRITIQUE: Utiliser getAttribute pour éviter les getters dynamiques d'Angular
+    // Ne JAMAIS utiliser element.id directement car Angular peut redéfinir le getter
+    try {
+      const id = element.getAttribute('id');
+      if (id && typeof id === 'string' && isValidId(id)) {
+        return id;
+      }
+    } catch (e) {
+      console.warn('[FR] Error getting ID:', e.message);
     }
     return null;
   }
 
   function isValidSelector(selector) {
     if (!selector || typeof selector !== 'string') return false;
+    if (selector.length > 1000) return false;
     
     const invalidPatterns = [
       'function',
@@ -85,18 +136,41 @@
       '}',
       '=>',
       'if(',
+      'if (',
       'let ',
       'var ',
-      'const '
+      'const ',
+      '===',
+      '!==',
+      '()',
+      'null',
+      'undefined',
+      '[native code]',
+      'use strict',
+      'prototype'
     ];
     
+    const selectorLower = selector.toLowerCase();
     for (const pattern of invalidPatterns) {
-      if (selector.includes(pattern)) {
+      if (selectorLower.includes(pattern.toLowerCase())) {
+        console.warn('[FR] Invalid selector rejected:', selector.substring(0, 80));
         return false;
       }
     }
     
     return true;
+  }
+  
+  function sanitizeAttributeValue(value) {
+    // Nettoyer les valeurs d'attributs pour les utiliser dans les sélecteurs
+    if (!value || typeof value !== 'string') return null;
+    if (value.length > 200) return null;
+    
+    // Vérifier que ce n'est pas du code
+    if (!isValidId(value)) return null;
+    
+    // Échapper les guillemets
+    return value.replace(/"/g, '\\"');
   }
 
   // ===== GÉNÉRATION DE SÉLECTEURS STYLE UI.VISION =====
