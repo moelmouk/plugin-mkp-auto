@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Form Recorder Pro",
-  "version": "2.5.0",
-  "description": "Enregistrez et rejouez vos formulaires - Compatible UI.Vision - Optimisé Angular",
+  "version": "3.0.0",
+  "description": "Enregistrez et rejouez vos formulaires - Compatible UI.Vision - Optimisé Angular 19 - Mode Debug",
   "permissions": [
     "activeTab",
     "storage",
