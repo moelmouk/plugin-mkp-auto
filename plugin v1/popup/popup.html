@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Form Recorder Pro</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+          <circle cx="12" cy="12" r="4" fill="#EF4444"/>
+        </svg>
+        <div>
+          <h1>Form Recorder Pro</h1>
+          <span class="version">v2.3 - Angular 19 + UI.Vision</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Tabs -->
+    <nav class="tabs">
+      <button class="tab active" data-tab="record" data-testid="tab-record">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+          <circle cx="12" cy="12" r="8"/>
+        </svg>
+        Enregistrer
+      </button>
+      <button class="tab" data-tab="scenarios" data-testid="tab-scenarios">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+        </svg>
+        Scénarios
+      </button>
+      <button class="tab" data-tab="settings" data-testid="tab-settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+        </svg>
+        Options
+      </button>
+    </nav>
+
+    <main class="main">
+      <!-- Tab: Enregistrer -->
+      <section class="tab-content active" id="tab-record">
+        <!-- Contrôles -->
+        <div class="controls">
+          <button id="recordBtn" class="btn btn-record" data-testid="record-btn">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+              <circle cx="12" cy="12" r="8"/>
+            </svg>
+            <span>Enregistrer</span>
+          </button>
+          
+          <button id="stopBtn" class="btn btn-stop" disabled data-testid="stop-btn">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+              <rect x="6" y="6" width="12" height="12" rx="2"/>
+            </svg>
+            <span>Arrêter</span>
+          </button>
+          
+          <button id="playBtn" class="btn btn-play" disabled data-testid="play-btn">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+              <polygon points="8,5 19,12 8,19"/>
+            </svg>
+            <span>Rejouer</span>
+          </button>
+        </div>
+
+        <!-- Status -->
+        <div id="status" class="status" data-testid="status">
+          <span class="status-icon">⏸️</span>
+          <span class="status-text">Prêt à enregistrer</span>
+        </div>
+
+        <!-- Commandes enregistrées -->
+        <div class="section">
+          <div class="section-header">
+            <h2>Commandes</h2>
+            <div class="section-actions">
+              <span id="commandCount" class="badge" data-testid="command-count">0</span>
+              <button id="clearBtn" class="btn-icon" title="Effacer" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div id="commandsList" class="commands-list" data-testid="commands-list">
+            <p class="empty-state">Cliquez sur "Enregistrer" pour commencer</p>
+          </div>
+        </div>
+
+        <!-- Actions rapides -->
+        <div class="quick-actions">
+          <button id="saveBtn" class="btn-secondary" disabled data-testid="save-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+            </svg>
+            Sauvegarder
+          </button>
+          <button id="exportBtn" class="btn-secondary" disabled data-testid="export-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Exporter
+          </button>
+          <label class="btn-secondary" data-testid="import-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Importer
+            <input type="file" id="importInput" accept=".json" hidden>
+          </label>
+        </div>
+      </section>
+
+      <!-- Tab: Scénarios -->
+      <section class="tab-content" id="tab-scenarios">
+        <div class="section">
+          <div class="section-header">
+            <h2>Scénarios sauvegardés</h2>
+          </div>
+          <div id="scenariosList" class="scenarios-list" data-testid="scenarios-list">
+            <p class="empty-state">Aucun scénario sauvegardé</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: Options -->
+      <section class="tab-content" id="tab-settings">
+        <div class="settings-group">
+          <h3>Enregistrement</h3>
+          <div class="setting-item checkbox">
+            <input type="checkbox" id="recordOpenCommand" checked>
+            <label for="recordOpenCommand">Enregistrer commande "open" (URL)</label>
+          </div>
+        </div>
+        <div class="settings-group">
+          <h3>Lecture</h3>
+          <div class="setting-item">
+            <label for="defaultWait">Délai entre actions (ms)</label>
+            <input type="number" id="defaultWait" value="1000" min="100" max="5000" step="100">
+          </div>
+          <div class="setting-item">
+            <label for="typeDelay">Délai de frappe (ms)</label>
+            <input type="number" id="typeDelay" value="30" min="0" max="200" step="10">
+          </div>
+          <div class="setting-item">
+            <label for="waitTimeout">Timeout recherche (ms)</label>
+            <input type="number" id="waitTimeout" value="10000" min="3000" max="30000" step="1000">
+          </div>
+        </div>
+        <div class="settings-group">
+          <h3>Affichage</h3>
+          <div class="setting-item checkbox">
+            <input type="checkbox" id="highlightElements" checked>
+            <label for="highlightElements">Surligner les éléments</label>
+          </div>
+          <div class="setting-item checkbox">
+            <input type="checkbox" id="smartWait" checked>
+            <label for="smartWait">Attente intelligente</label>
+          </div>
+        </div>
+        <div class="settings-group">
+          <h3>Compatibilité</h3>
+          <div class="setting-item">
+            <label>Optimisé pour:</label>
+            <span class="compatibility-badges">
+              <span class="compat-badge angular">Angular 19</span>
+              <span class="compat-badge">UI.Vision</span>
+            </span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Form Recorder Pro</span>
+    </footer>
+  </div>
+
+  <!-- Modal Sauvegarder -->
+  <div id="saveModal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <h3>Sauvegarder le scénario</h3>
+      <input type="text" id="scenarioName" placeholder="Nom du scénario" data-testid="scenario-name-input">
+      <div class="modal-actions">
+        <button id="cancelSaveBtn" class="btn-secondary">Annuler</button>
+        <button id="confirmSaveBtn" class="btn btn-play">Sauvegarder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Édition -->
+  <div id="editModal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-content modal-large">
+      <h3>Modifier la commande</h3>
+      <div class="edit-form">
+        <div class="form-group">
+          <label>Commande</label>
+          <select id="editCommand">
+            <option value="click">click</option>
+            <option value="type">type</option>
+            <option value="select">select</option>
+            <option value="open">open</option>
+            <option value="selectNgOption">selectNgOption (Angular)</option>
+            <option value="waitForElementVisible">waitForElementVisible</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Target</label>
+          <input type="text" id="editTarget" placeholder="Selector">
+        </div>
+        <div class="form-group">
+          <label>Value</label>
+          <input type="text" id="editValue" placeholder="Valeur (optionnel)">
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <input type="text" id="editDescription" placeholder="Description (optionnel)">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="cancelEditBtn" class="btn-secondary">Annuler</button>
+        <button id="confirmEditBtn" class="btn btn-play">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
