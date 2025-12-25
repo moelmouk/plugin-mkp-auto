@@ -43,15 +43,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-function handleStartRecording(message, sender, sendResponse) {
-  recordingTabId = sender.tab.id;
+async function handleStartRecording(message, sender, sendResponse) {
+  // Récupérer l'onglet actif (le message vient du popup)
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tabs || tabs.length === 0) {
+    sendResponse({ success: false, error: 'No active tab found' });
+    return;
+  }
+  
+  const activeTab = tabs[0];
+  recordingTabId = activeTab.id;
   const now = Date.now();
   currentScenario = {
     id: generateId(),
     name: message.name || `Scenario ${new Date().toLocaleString('fr-FR')}`,
     commands: [],
     metadata: {
-      url: sender.tab.url,
+      url: activeTab.url,
       startTime: now,
       lastActionTime: now,
       recordedAt: new Date().toISOString()
