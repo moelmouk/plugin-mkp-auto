@@ -467,6 +467,48 @@
       return;
     }
     
+    // Gestion spéciale des options ng-select
+    const ngOptionItem = element.closest('.ng-option');
+    if (ngOptionItem) {
+      // C'est un clic sur une option de ng-select
+      const optionText = ngOptionItem.textContent?.trim();
+      if (optionText && optionText.length < 100) {
+        // Utiliser un sélecteur par texte pour plus de robustesse
+        const escapedText = optionText.replace(/"/g, '\\"');
+        const selector = `xpath=//div[contains(@class, "ng-option") and contains(normalize-space(.), "${escapedText}")]`;
+        recordCommand('click', selector, '', `Option: ${optionText.substring(0, 40)}`, element);
+        return;
+      }
+    }
+    
+    // Gestion des dropdown-item (ng-dropdown-panel)
+    const dropdownItem = element.closest('.ng-dropdown-panel-items .ng-option, [role="option"]');
+    if (dropdownItem) {
+      const itemText = dropdownItem.textContent?.trim();
+      if (itemText && itemText.length < 100) {
+        const escapedText = itemText.replace(/"/g, '\\"');
+        const selector = `xpath=//*[contains(@class, "ng-option") and contains(normalize-space(.), "${escapedText}")]`;
+        recordCommand('click', selector, '', `Sélection: ${itemText.substring(0, 40)}`, element);
+        return;
+      }
+    }
+    
+    // Gestion ng-select container (pour ouvrir le dropdown)
+    const ngSelect = element.closest('ng-select');
+    if (ngSelect && !element.closest('.ng-dropdown-panel')) {
+      // Clic pour ouvrir le dropdown
+      const ngSelectId = getElementId(ngSelect);
+      if (ngSelectId) {
+        recordCommand('click', `id=${ngSelectId}`, '', 'Ouvrir liste', ngSelect);
+        return;
+      }
+      const fcName = ngSelect.getAttribute('formcontrolname');
+      if (fcName && sanitizeAttributeValue(fcName)) {
+        recordCommand('click', `xpath=//ng-select[@formcontrolname="${fcName}"]`, '', 'Ouvrir liste', ngSelect);
+        return;
+      }
+    }
+    
     // Description basée sur le contenu
     let description = '';
     const textContent = element.textContent?.trim();
