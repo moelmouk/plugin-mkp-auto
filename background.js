@@ -1,4 +1,5 @@
-// Background Service Worker pour Form Recorder Pro v3.0
+// Background Service Worker pour Form Recorder Pro v3.0.1
+// CORRECTION: Gestion async complète pour éviter les erreurs sender.tab
 
 let recordingTabId = null;
 let currentScenario = {
@@ -12,65 +13,91 @@ let currentScenario = {
   }
 };
 
-// Gestion des messages
+// Gestion des messages avec async/await
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('[FR BG] Message received:', message.action);
+  
   switch (message.action) {
     case 'startRecording':
       handleStartRecording(message, sender, sendResponse);
-      return true; // Keep channel open for async
+      return true; // IMPORTANT: Keep channel open for async
+      
     case 'stopRecording':
       handleStopRecording(message, sender, sendResponse);
-      break;
+      return true;
+      
     case 'recordCommand':
       handleRecordCommand(message, sender, sendResponse);
-      break;
+      return true;
+      
     case 'playScenario':
       handlePlayScenario(message, sender, sendResponse);
-      return true; // Keep channel open for async
+      return true;
+      
     case 'playScenarioGroup':
       handlePlayScenarioGroup(message, sender, sendResponse);
       return true;
+      
     case 'getRecordingState':
       sendResponse({ 
         isRecording: recordingTabId !== null,
         tabId: recordingTabId,
         scenario: currentScenario 
       });
-      break;
+      return true;
+      
     default:
       sendResponse({ success: false, error: 'Unknown action' });
+      return true;
   }
-  return true;
 });
 
+// FONCTION CORRIGÉE: Récupération explicite de l'onglet actif
 async function handleStartRecording(message, sender, sendResponse) {
-  // Récupérer l'onglet actif (le message vient du popup)
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tabs || tabs.length === 0) {
-    sendResponse({ success: false, error: 'No active tab found' });
-    return;
-  }
-  
-  const activeTab = tabs[0];
-  recordingTabId = activeTab.id;
-  const now = Date.now();
-  currentScenario = {
-    id: generateId(),
-    name: message.name || `Scenario ${new Date().toLocaleString('fr-FR')}`,
-    commands: [],
-    metadata: {
-      url: activeTab.url,
-      startTime: now,
-      lastActionTime: now,
-      recordedAt: new Date().toISOString()
+  try {
+    console.log('[FR BG] handleStartRecording called');
+    
+    // Récupérer l'onglet actif explicitement (le message vient du popup, pas d'un tab)
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    console.log('[FR BG] Active tabs found:', tabs?.length);
+    
+    if (!tabs || tabs.length === 0) {
+      console.error('[FR BG] No active tab found');
+      sendResponse({ success: false, error: 'No active tab found' });
+      return;
     }
-  };
-  
-  console.log('[FR BG] Recording started:', currentScenario.name);
-  sendResponse({ success: true, scenarioId: currentScenario.id });
+    
+    const activeTab = tabs[0];
+    console.log('[FR BG] Using tab:', activeTab.id, activeTab.url);
+    
+    recordingTabId = activeTab.id;
+    const now = Date.now();
+    
+    currentScenario = {
+      id: generateId(),
+      name: message.name || `Scenario ${new Date().toLocaleString('fr-FR')}`,
+      commands: [],
+      metadata: {
+        url: activeTab.url,
+        startTime: now,
+        lastActionTime: now,
+        recordedAt: new Date().toISOString()
+      }
+    };
+    
+    console.log('[FR BG] Recording started:', currentScenario.name, 'on tab', recordingTabId);
+    sendResponse({ success: true, scenarioId: currentScenario.id });
+    
+  } catch (error) {
+    console.error('[FR BG] Error in handleStartRecording:', error);
+    sendResponse({ success: false, error: error.message });
+  }
 }
 
 function handleStopRecording(message, sender, sendResponse) {
+  console.log('[FR BG] handleStopRecording called');
+  
   if (recordingTabId === null) {
     sendResponse({ success: false, error: 'Not recording' });
     return;
@@ -95,9 +122,10 @@ function handleRecordCommand(message, sender, sendResponse) {
     return;
   }
   
-  // Vérifier que le message vient du bon onglet
+  // Vérifier que le message vient du bon onglet (protection contre undefined)
   const senderTabId = sender.tab?.id || recordingTabId;
   if (senderTabId !== recordingTabId) {
+    console.warn('[FR BG] Command from wrong tab:', senderTabId, 'expected:', recordingTabId);
     sendResponse({ success: false, error: 'Wrong tab' });
     return;
   }
@@ -127,7 +155,17 @@ function handleRecordCommand(message, sender, sendResponse) {
 async function handlePlayScenario(message, sender, sendResponse) {
   try {
     const { scenario, settings, tabId } = message;
-    const targetTabId = tabId || sender.tab.id;
+    const targetTabId = tabId || sender.tab?.id;
+    
+    if (!targetTabId) {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs && tabs.length > 0) {
+        targetTabId = tabs[0].id;
+      } else {
+        sendResponse({ success: false, error: 'No target tab' });
+        return;
+      }
+    }
     
     console.log('[FR BG] Playing scenario:', scenario.name, 'Commands:', scenario.commands.length);
     
@@ -199,7 +237,7 @@ async function handlePlayScenarioGroup(message, sender, sendResponse) {
       // Exécution séquentielle
       const results = [];
       for (const scenario of scenarios) {
-        const result = await playScenarioInTab(scenario, settings, sender.tab.id);
+        const result = await playScenarioInTab(scenario, settings, sender.tab?.id);
         results.push(result);
         if (!result.success && settings.stopOnError) break;
       }
@@ -246,4 +284,4 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-console.log('[FR BG] Form Recorder Pro v3.0 background script loaded');
+console.log('[FR BG] Form Recorder Pro v3.0.1 background script loaded - FIXED');
