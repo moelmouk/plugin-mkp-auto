@@ -1003,5 +1003,5 @@
     return true;
   });
 
-  console.log('[FR] Form Recorder Pro v4.1 loaded');
+  console.log('[FR] Form Recorder Pro v4.2 loaded');
 })();
