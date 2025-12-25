@@ -299,9 +299,18 @@
   function generateAbsoluteXPath(element) {
     const parts = [];
     let current = element;
+    let depth = 0;
+    const maxDepth = 15; // Limiter la profondeur pour éviter des XPaths trop longs
     
-    while (current && current !== document.body && current !== document.documentElement) {
+    while (current && current !== document.body && current !== document.documentElement && depth < maxDepth) {
       const tagName = current.tagName.toLowerCase();
+      
+      // Ignorer les balises script, style, etc.
+      if (['script', 'style', 'noscript'].includes(tagName)) {
+        current = current.parentElement;
+        continue;
+      }
+      
       let index = 1;
       let sibling = current.previousElementSibling;
       
@@ -322,9 +331,10 @@
       }
       
       current = current.parentElement;
+      depth++;
     }
     
-    if (parts.length > 0) {
+    if (parts.length > 0 && parts.length <= maxDepth) {
       return '/html/body/' + parts.join('/');
     }
     return null;
