@@ -148,15 +148,59 @@
   async function startRecording() {
     try {
       const scenarioName = document.getElementById('scenarioNameInput').value.trim() ||
-                          `Sc\u00e9nario ${new Date().toLocaleString('fr-FR')}`;
+                          `Scenario ${new Date().toLocaleString('fr-FR')}`;
       
-      // D\u00e9marrer l'enregistrement dans le content script
+      console.log('[FR Popup] Starting recording for:', scenarioName);
+      
+      // Vérifier que le content script est chargé
+      console.log('[FR Popup] Checking if content script is loaded...');
+      let contentScriptReady = false;
+      
+      try {
+        const response = await chrome.tabs.sendMessage(currentTab.id, { action: 'ping' });
+        contentScriptReady = response && response.ready;
+        console.log('[FR Popup] Content script ready:', contentScriptReady);
+      } catch (pingError) {
+        console.warn('[FR Popup] Content script not loaded:', pingError.message);
+      }
+      
+      // Si le content script n'est pas chargé, l'injecter
+      if (!contentScriptReady) {
+        console.log('[FR Popup] Injecting content script...');
+        showToast('Initialisation du script...', 'info');
+        
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: currentTab.id },
+            files: ['content/content.js']
+          });
+          
+          await chrome.scripting.insertCSS({
+            target: { tabId: currentTab.id },
+            files: ['content/content.css']
+          });
+          
+          await sleep(1000);
+          
+          const retryResponse = await chrome.tabs.sendMessage(currentTab.id, { action: 'ping' });
+          if (!retryResponse || !retryResponse.ready) {
+            throw new Error('Content script not responding');
+          }
+          
+          console.log('[FR Popup] Content script injected successfully');
+        } catch (injectError) {
+          console.error('[FR Popup] Failed to inject:', injectError);
+          showToast('Erreur: Rechargez la page (F5) et réessayez', 'error');
+          return;
+        }
+      }
+      
+      // Démarrer l'enregistrement
       await chrome.tabs.sendMessage(currentTab.id, {
         action: 'startRecording',
         settings: settings
       });
       
-      // Notifier le background
       await chrome.runtime.sendMessage({
         action: 'startRecording',
         name: scenarioName
@@ -164,11 +208,15 @@
       
       isRecording = true;
       updateRecordingUI(true);
-      showToast('Enregistrement d\u00e9marr\u00e9', 'success');
+      showToast('Enregistrement démarré', 'success');
     } catch (error) {
       console.error('[FR Popup] Error starting recording:', error);
-      showToast('Erreur de d\u00e9marrage', 'error');
+      showToast('Erreur: ' + error.message, 'error');
     }
+  }
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   async function stopRecording() {
