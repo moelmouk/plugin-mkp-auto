@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Form Recorder Pro",
-  "version": "4.0.0",
-  "description": "Enregistrez et rejouez vos formulaires - Compatible UI.Vision - Style UI.Vision",
+  "version": "4.2.0",
+  "description": "Enregistrez et rejouez vos formulaires - Compatible UI.Vision - Validation renforcée",
   "permissions": [
     "activeTab",
     "storage",
