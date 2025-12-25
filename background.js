@@ -17,7 +17,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.action) {
     case 'startRecording':
       handleStartRecording(message, sender, sendResponse);
-      break;
+      return true; // Keep channel open for async
     case 'stopRecording':
       handleStopRecording(message, sender, sendResponse);
       break;
